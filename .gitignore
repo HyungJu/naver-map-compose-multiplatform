@@ -1,6 +1,7 @@
 *.iml
 .kotlin
 .gradle
+.build/
 **/build/
 !src/**/build/
 local.properties
@@ -9,6 +10,7 @@ local.properties.*
 .idea
 .DS_Store
 DerivedData/
+artifacts/mobile/ios-derivedData/
 xcuserdata
 *.xcuserstate
 *.xcscmblueprint
