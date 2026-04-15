@@ -18,6 +18,8 @@ Use this skill for release tasks in `/Users/jude/Code/naver-map-compose-multipla
 ./scripts/cut-release.sh <release-version> [next-snapshot-version]
 ```
 
+5. After the release exists, write the GitHub Release notes in Korean and update the Release body with `gh release edit`.
+
 ## What The Script Does
 
 - Creates a release commit with a non-snapshot `VERSION_NAME`
@@ -35,6 +37,16 @@ Suggested reasoning:
 - Shared API additions or behavior expansion under `naver-map-compose/src/commonMain` usually mean `minor`
 - Fixes, tooling, docs, CI, and implementation-only changes usually mean `patch`
 - If there is no previous release tag, use the current non-snapshot part of `VERSION_NAME` as the first release baseline
+
+## Korean Release Notes
+
+- Every release should end with Korean release notes, even if the helper script created an English placeholder body first.
+- Summarize the release in natural Korean, not a literal commit dump.
+- Prefer concise sections such as `Maven Central`, `주요 변경사항`, `수정 및 안정화`, and `기타`.
+- Include the install coordinate for the released version.
+- Group related commits into a user-facing summary instead of listing every internal release-management commit.
+- If a compare link is helpful, keep it at the bottom.
+- After drafting the Korean notes, apply them to GitHub with `gh release edit <tag> --notes-file <file>`.
 
 ## Guardrails
 
