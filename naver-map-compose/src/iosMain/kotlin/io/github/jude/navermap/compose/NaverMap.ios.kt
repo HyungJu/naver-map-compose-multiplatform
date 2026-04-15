@@ -31,6 +31,7 @@ import cocoapods.NMapsMap.NMFMapTypeNaviHybrid
 import cocoapods.NMapsMap.NMFMapTypeNone
 import cocoapods.NMapsMap.NMFMapTypeSatellite
 import cocoapods.NMapsMap.NMFMapTypeTerrain
+import cocoapods.NMapsMap.NMFMapViewCameraDelegateProtocol
 import cocoapods.NMapsMap.NMFMapView
 import cocoapods.NMapsMap.NMFMapViewLoadDelegateProtocol
 import cocoapods.NMapsMap.NMFMapViewOptionDelegateProtocol
@@ -64,6 +65,7 @@ private class ManagedNaverMapView {
     val container = NMFNaverMapView()
     var boundCameraState: CameraPositionState? = null
     var mapHandle: PlatformMapHandle? = null
+    private var cameraDelegate: NMFMapViewCameraDelegateProtocol? = null
     private var touchDelegate: NMFMapViewTouchDelegateProtocol? = null
     private var optionDelegate: NMFMapViewOptionDelegateProtocol? = null
     private var loadDelegate: NMFMapViewLoadDelegateProtocol? = null
@@ -83,6 +85,36 @@ private class ManagedNaverMapView {
 
         clearCameraBinding()
         boundCameraState = cameraPositionState
+        cameraDelegate = object : NSObject(), NMFMapViewCameraDelegateProtocol {
+            @ObjCSignatureOverride
+            override fun mapView(mapView: NMFMapView, cameraIsChangingByReason: Long) {
+                cameraPositionState.updateFromMap(
+                    position = mapView.cameraPosition.toCommonCameraPosition(),
+                    isMoving = true,
+                    cameraUpdateReason = CameraUpdateReason.fromInt(cameraIsChangingByReason.toInt()),
+                    locationTrackingMode = mapView.positionMode.toCommonTrackingMode(),
+                )
+            }
+
+            @ObjCSignatureOverride
+            override fun mapView(mapView: NMFMapView, cameraDidChangeByReason: Long, animated: Boolean) {
+                cameraPositionState.updateFromMap(
+                    position = mapView.cameraPosition.toCommonCameraPosition(),
+                    isMoving = false,
+                    cameraUpdateReason = CameraUpdateReason.fromInt(cameraDidChangeByReason.toInt()),
+                    locationTrackingMode = mapView.positionMode.toCommonTrackingMode(),
+                )
+            }
+
+            @ObjCSignatureOverride
+            override fun mapViewCameraIdle(mapView: NMFMapView) {
+                cameraPositionState.updateFromMap(
+                    position = mapView.cameraPosition.toCommonCameraPosition(),
+                    isMoving = false,
+                    locationTrackingMode = mapView.positionMode.toCommonTrackingMode(),
+                )
+            }
+        }.also(map::addCameraDelegate)
         cameraPositionState.bind { position ->
             if (!map.cameraPosition.matches(position)) {
                 map.moveCamera(position.toCameraUpdate())
@@ -95,7 +127,9 @@ private class ManagedNaverMapView {
     }
 
     fun clearCameraBinding() {
+        cameraDelegate?.let(container.mapView::removeCameraDelegate)
         boundCameraState?.bind(null)
+        cameraDelegate = null
         boundCameraState = null
     }
 
