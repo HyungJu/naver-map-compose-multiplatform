@@ -25,7 +25,7 @@ export MAVEN_CENTRAL_USERNAME=...
 export MAVEN_CENTRAL_PASSWORD=...
 export MAVEN_CENTRAL_GPG_PRIVATE_KEY="$(cat /path/to/private.asc)"
 export MAVEN_CENTRAL_GPG_PASSPHRASE=...
-# optional
+# optional, and often best left unset unless you know you need it
 export MAVEN_CENTRAL_GPG_KEY_ID=...
 ```
 
@@ -40,6 +40,8 @@ If signing fails with `Could not read PGP secret key`, the most common causes ar
 - the secret contains a public key instead of a private key
 - the passphrase does not match the private key
 - `MAVEN_CENTRAL_GPG_KEY_ID` is wrong and should be corrected or omitted
+
+If you are unsure about `MAVEN_CENTRAL_GPG_KEY_ID`, leave it unset first and only add it if signing still requires it.
 
 ## Local Release Commands
 

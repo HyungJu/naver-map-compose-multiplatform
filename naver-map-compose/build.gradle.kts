@@ -179,7 +179,17 @@ signing {
     if (key != null && password != null) {
         val normalizedKey = normalizeSigningKey(key)
         runCatching {
-            useInMemoryPgpKeys(signingKeyId.orNull, normalizedKey, password)
+            val keyId = signingKeyId.orNull?.trim().orEmpty()
+            if (keyId.isBlank()) {
+                useInMemoryPgpKeys(normalizedKey, password)
+            } else {
+                runCatching {
+                    useInMemoryPgpKeys(keyId, normalizedKey, password)
+                }.recoverCatching {
+                    // Some exports work without an explicit key id, and a mismatched key id is a common CI mistake.
+                    useInMemoryPgpKeys(normalizedKey, password)
+                }.getOrThrow()
+            }
         }.getOrElse { error ->
             throw GradleException(
                 """
@@ -188,8 +198,8 @@ signing {
                 - the full ASCII-armored private key block, or
                 - a base64-encoded copy of that ASCII-armored private key block.
                 
-                Also verify that MAVEN_CENTRAL_GPG_PASSPHRASE matches the private key and that
-                MAVEN_CENTRAL_GPG_KEY_ID is either correct or omitted.
+                Also verify that MAVEN_CENTRAL_GPG_PASSPHRASE matches the private key. If
+                MAVEN_CENTRAL_GPG_KEY_ID is set, make sure it matches the exported key or just omit it.
                 """.trimIndent(),
                 error,
             )
