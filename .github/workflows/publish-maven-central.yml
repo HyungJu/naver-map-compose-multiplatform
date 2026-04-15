@@ -54,11 +54,50 @@ jobs:
 
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
+      - name: Validate signing secrets
+        env:
+          MAVEN_CENTRAL_GPG_PRIVATE_KEY: ${{ secrets.MAVEN_CENTRAL_GPG_PRIVATE_KEY }}
+          MAVEN_CENTRAL_GPG_PASSPHRASE: ${{ secrets.MAVEN_CENTRAL_GPG_PASSPHRASE }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64
+          import os
+          import sys
+
+          key = os.environ.get("MAVEN_CENTRAL_GPG_PRIVATE_KEY", "").strip()
+          passphrase = os.environ.get("MAVEN_CENTRAL_GPG_PASSPHRASE", "")
+
+          if not key:
+              raise SystemExit("MAVEN_CENTRAL_GPG_PRIVATE_KEY is empty")
+          if not passphrase:
+              raise SystemExit("MAVEN_CENTRAL_GPG_PASSPHRASE is empty")
+
+          normalized = key.replace("\r\n", "\n").replace("\\n", "\n").strip()
+          if "BEGIN PGP PRIVATE KEY BLOCK" in normalized:
+              print("Detected ASCII-armored private key secret.")
+              sys.exit(0)
+
+          try:
+              decoded = base64.decodebytes(normalized.encode("utf-8")).decode("utf-8")
+          except Exception as exc:
+              raise SystemExit(
+                  "MAVEN_CENTRAL_GPG_PRIVATE_KEY is neither an ASCII-armored private key nor a valid base64-encoded copy of one"
+              ) from exc
+
+          decoded = decoded.replace("\r\n", "\n").replace("\\n", "\n").strip()
+          if "BEGIN PGP PRIVATE KEY BLOCK" not in decoded:
+              raise SystemExit(
+                  "Base64-decoded MAVEN_CENTRAL_GPG_PRIVATE_KEY does not contain an ASCII-armored private key block"
+              )
+
+          print("Detected base64-encoded ASCII-armored private key secret.")
+          PY
+
       - name: Publish to Maven Central
         env:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           MAVEN_CENTRAL_GPG_PRIVATE_KEY: ${{ secrets.MAVEN_CENTRAL_GPG_PRIVATE_KEY }}
           MAVEN_CENTRAL_GPG_PASSPHRASE: ${{ secrets.MAVEN_CENTRAL_GPG_PASSPHRASE }}
-          MAVEN_CENTRAL_GPG_KEY_ID: ${{ secrets.MAVEN_CENTRAL_GPG_KEY_ID }}
         run: ./gradlew :naver-map-compose:publishToMavenCentral -PVERSION_NAME=${{ steps.release-version.outputs.version }}

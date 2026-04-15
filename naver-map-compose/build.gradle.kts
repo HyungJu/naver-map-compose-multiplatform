@@ -23,17 +23,21 @@ fun Project.gradlePropertyOrEnv(propertyName: String, envName: String) =
     providers.gradleProperty(propertyName).orElse(providers.environmentVariable(envName))
 
 fun normalizeSigningKey(rawKey: String): String {
-    val normalized = rawKey.replace("\r\n", "\n").trim()
+    val normalized = rawKey
+        .replace("\r\n", "\n")
+        .replace("\\n", "\n")
+        .trim()
     if (normalized.contains("BEGIN PGP PRIVATE KEY BLOCK")) {
         return normalized
     }
 
     val decoded = runCatching {
-        String(Base64.getDecoder().decode(normalized), StandardCharsets.UTF_8)
+        String(Base64.getMimeDecoder().decode(normalized), StandardCharsets.UTF_8)
     }.getOrNull()
 
     val decodedNormalized = decoded
         ?.replace("\r\n", "\n")
+        ?.replace("\\n", "\n")
         ?.trim()
 
     return if (decodedNormalized?.contains("BEGIN PGP PRIVATE KEY BLOCK") == true) {
@@ -179,27 +183,19 @@ signing {
     if (key != null && password != null) {
         val normalizedKey = normalizeSigningKey(key)
         runCatching {
-            val keyId = signingKeyId.orNull?.trim().orEmpty()
-            if (keyId.isBlank()) {
-                useInMemoryPgpKeys(normalizedKey, password)
-            } else {
-                runCatching {
-                    useInMemoryPgpKeys(keyId, normalizedKey, password)
-                }.recoverCatching {
-                    // Some exports work without an explicit key id, and a mismatched key id is a common CI mistake.
-                    useInMemoryPgpKeys(normalizedKey, password)
-                }.getOrThrow()
-            }
+            // The explicit key id is optional and a frequent source of CI failures when it does not
+            // match the exported private key. Let the signing plugin infer it from the key material.
+            useInMemoryPgpKeys(normalizedKey, password)
         }.getOrElse { error ->
             throw GradleException(
                 """
-                Failed to read the in-memory PGP secret key.
+                Failed to configure the in-memory PGP secret key.
                 Expected MAVEN_CENTRAL_GPG_PRIVATE_KEY or signingInMemoryKey to contain either:
                 - the full ASCII-armored private key block, or
                 - a base64-encoded copy of that ASCII-armored private key block.
                 
-                Also verify that MAVEN_CENTRAL_GPG_PASSPHRASE matches the private key. If
-                MAVEN_CENTRAL_GPG_KEY_ID is set, make sure it matches the exported key or just omit it.
+                Also verify that MAVEN_CENTRAL_GPG_PASSPHRASE matches the private key.
+                MAVEN_CENTRAL_GPG_KEY_ID is optional and is intentionally ignored by this build.
                 """.trimIndent(),
                 error,
             )
