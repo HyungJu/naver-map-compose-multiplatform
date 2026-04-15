@@ -7,7 +7,7 @@
 [![Compose Multiplatform](https://img.shields.io/badge/Compose%20Multiplatform-1.10.3-4285F4.svg)](https://www.jetbrains.com/compose-multiplatform/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-이 라이브러리는 Kotlin Multiplatform과 Compose Multiplatform에서 사용할 수 있는 NAVER Map API를 제공합니다. Android와 iOS에서 공통 Compose API로 지도를 렌더링하고, 카메라 상태와 지도 옵션, 주요 이벤트를 공유하는 것을 목표로 합니다.
+이 라이브러리는 Kotlin Multiplatform과 Compose Multiplatform에서 사용할 수 있는 NAVER Map API를 제공합니다. Android와 iOS에서 공통 Compose API로 지도를 렌더링하고, 카메라 상태와 지도 옵션, `MarkerComposable`을 포함한 주요 오버레이와 이벤트를 공유하는 것을 목표로 합니다.
 
 이 프로젝트는 [`fornewid/naver-map-compose`](https://github.com/fornewid/naver-map-compose)를 레퍼런스로 삼아 시작했습니다. 다만 Android 전용 API를 그대로 옮기기보다, 멀티플랫폼 환경에 맞는 공통 추상화를 우선하는 방향으로 설계하고 있습니다.
 
@@ -83,7 +83,7 @@ dependencyResolutionManagement {
 ```
 
 2. 샘플 앱과 실제 앱 모두 NAVER Cloud Platform 지도 클라이언트 ID가 필요합니다.
-3. 현재 라이브러리는 공통 지도 호스트, 카메라 상태, 주요 지도 옵션, 이벤트 콜백 중심으로 제공됩니다. 오버레이 전반과 일부 고급 기능은 아직 확장 중입니다.
+3. 현재 라이브러리는 공통 지도 호스트, 카메라 상태, 주요 지도 옵션, `MarkerComposable`을 포함한 대표 오버레이, 이벤트 콜백 중심으로 제공됩니다. 위치 소스 헬퍼와 일부 업스트림 패리티 항목은 계속 확장 중입니다.
 
 ## Usage
 
@@ -157,6 +157,49 @@ Box(Modifier.fillMaxSize()) {
 }
 ```
 
+### 오버레이와 MarkerComposable 사용하기
+
+기본 `Marker`뿐 아니라 Compose UI를 그대로 캡처해 지도 아이콘으로 사용하는 `MarkerComposable`과 경로/도형/위치 오버레이를 함께 사용할 수 있습니다.
+
+```kotlin
+val cityHall = LatLng(37.5666102, 126.9783881)
+
+NaverMap(
+    modifier = Modifier.fillMaxSize(),
+) {
+    Marker(
+        state = rememberUpdatedMarkerState(position = cityHall),
+        captionText = "대표 마커",
+        icon = OverlayImage.GreenMarker,
+    )
+
+    MarkerComposable(
+        state = rememberUpdatedMarkerState(
+            position = LatLng(37.5673, 126.9792),
+        ),
+    ) {
+        Surface(
+            color = Color(0xFF111827),
+            contentColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
+        ) {
+            Text(
+                text = "Compose 마커",
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            )
+        }
+    }
+
+    CircleOverlay(
+        center = cityHall,
+        radiusMeters = 450.0,
+        fillColor = Color(0x332A6CF0),
+        outlineWidth = 2.dp,
+        outlineColor = Color(0xFF2A6CF0),
+    )
+}
+```
+
 ### 지도 이벤트 처리하기
 
 클릭, 롱클릭, 지도 로드 완료, 옵션 변경, 실내지도 선택, 위치 변경 등의 이벤트를 콜백으로 받을 수 있습니다.
@@ -189,15 +232,28 @@ NaverMap(
 - `CameraPositionState`
 - `rememberCameraPositionState`
 - `currentCameraPositionState`
+- `MarkerState`
+- `rememberMarkerState`
+- `rememberUpdatedMarkerState`
 - `MapProperties`
 - `MapUiSettings`
+- `OverlayStyle`
 - `MapEffect`
 - `DisposableMapEffect`
+- `Marker`
+- `MarkerComposable`
+- `CircleOverlay`
+- `PolygonOverlay`
+- `PolylineOverlay`
+- `GroundOverlay`
+- `PathOverlay`
+- `MultipartPathOverlay`
+- `ArrowheadPathOverlay`
+- `LocationOverlay`
 - 지도 클릭/롱클릭/더블탭/투핑거탭 이벤트
 - 지도 로드 완료, 옵션 변경, 실내지도, 위치 변경 이벤트
 
 다음 기능은 아직 작업 중이거나 설계 단계에 있습니다.
 
-- 마커 및 각종 오버레이 컴포저블
 - 위치 소스 헬퍼
-- 업스트림 대비 기능 패리티 확대
+- 업스트림 대비 추가 패리티 확대
