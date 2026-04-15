@@ -200,6 +200,39 @@ NaverMap(
 }
 ```
 
+### Compose Marker(`MarkerComposable`) 작성 팁
+
+`MarkerComposable`은 내부적으로 Compose 콘텐츠를 이미지로 캡처해 네이티브 마커 아이콘으로 렌더링합니다. 아래 가이드를 따르면 안정적으로 사용할 수 있습니다.
+
+- 마커 콘텐츠는 **항상 크기가 0보다 크도록** 작성하세요. (`padding`, `sizeIn`, `defaultMinSize` 등으로 최소 크기 보장)
+- 동적인 상태(텍스트, 색상, 뱃지 카운트 등)는 Compose 상태로 관리하면 자동으로 다시 캡처되어 아이콘에 반영됩니다.
+- `MarkerComposable` 내부 UI는 스냅샷 이미지이므로, 버튼 클릭 같은 **직접 상호작용 UI 용도**보다는 상태 표현 중심 UI에 적합합니다.
+
+```kotlin
+val storePosition = LatLng(37.5657, 126.9770)
+var isOpen by remember { mutableStateOf(true) }
+
+NaverMap(
+    modifier = Modifier.fillMaxSize(),
+) {
+    MarkerComposable(
+        state = rememberUpdatedMarkerState(position = storePosition),
+    ) {
+        Surface(
+            color = if (isOpen) Color(0xFF16A34A) else Color(0xFF6B7280),
+            contentColor = Color.White,
+            shape = RoundedCornerShape(999.dp),
+            modifier = Modifier.defaultMinSize(minWidth = 72.dp),
+        ) {
+            Text(
+                text = if (isOpen) "영업중" else "마감",
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+        }
+    }
+}
+```
+
 ### 지도 이벤트 처리하기
 
 클릭, 롱클릭, 지도 로드 완료, 옵션 변경, 실내지도 선택, 위치 변경 등의 이벤트를 콜백으로 받을 수 있습니다.
