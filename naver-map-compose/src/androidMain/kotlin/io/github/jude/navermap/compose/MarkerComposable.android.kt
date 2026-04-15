@@ -35,7 +35,6 @@ internal actual class PlatformMarkerComposableImage(
 internal actual fun rememberPlatformMarkerComposableImage(
     density: androidx.compose.ui.unit.Density,
     layoutDirection: androidx.compose.ui.unit.LayoutDirection,
-    keys: Array<out Any?>,
     content: @Composable () -> Unit,
 ): PlatformMarkerComposableImage {
     val parent = LocalView.current as? ViewGroup
@@ -46,7 +45,7 @@ internal actual fun rememberPlatformMarkerComposableImage(
         mutableStateOf(transparentMarkerPlaceholder)
     }
 
-    LaunchedEffect(parent, compositionContext, *keys) {
+    LaunchedEffect(parent, compositionContext) {
         while (!parent.isAttachedToWindow) {
             withFrameNanos { }
         }
@@ -65,16 +64,14 @@ internal actual fun updatePlatformMarkerComposableOverlay(
     overlay: PlatformMarkerOverlay,
     position: LatLng,
     icon: PlatformMarkerComposableImage,
-    captionText: String,
-    alpha: Float,
     style: OverlayStyle,
     onClick: () -> Boolean,
 ) {
     overlay.nativeOverlay.apply {
         this.position = position.toMarkerAndroidLatLng()
         this.icon = icon.nativeImage
-        this.captionText = captionText
-        this.alpha = alpha
+        this.captionText = ""
+        this.alpha = 1f
         applyMarkerCommonStyle(style, onClick)
         map = handle.nativeMap
     }

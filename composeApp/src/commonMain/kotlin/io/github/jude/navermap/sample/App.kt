@@ -195,13 +195,7 @@ fun App() {
                         },
                     )
                     MarkerComposable(
-                        "compose-marker",
                         state = rememberUpdatedMarkerState(position = composeMarker),
-                        captionText = "Compose",
-                        style = OverlayStyle(
-                            tag = "compose-marker",
-                            globalZIndex = 210_000,
-                        ),
                         onClick = {
                             lastMapEvent = "마커 클릭 Compose 마커"
                             true

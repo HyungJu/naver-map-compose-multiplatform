@@ -13,29 +13,27 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 /**
  * Composable 콘텐츠를 이미지로 캡처해 NAVER 지도 native marker icon으로 사용하는 API입니다.
  *
- * `keys`가 바뀌면 마커 이미지를 다시 생성하며, 캡처된 콘텐츠는 스냅샷 기반이라 내부 상호작용은 지원하지 않습니다.
+ * 마커의 시각 표현은 `content`가 전담하며, 캡처된 콘텐츠는 스냅샷 기반이라 내부 상호작용은 지원하지 않습니다.
  */
 @Composable
 fun MarkerComposable(
-    vararg keys: Any?,
     state: MarkerState = rememberUpdatedMarkerState(),
-    captionText: String = "",
-    alpha: Float = 1f,
-    style: OverlayStyle = OverlayStyle(globalZIndex = MarkerDefaults.GlobalZIndex),
     onClick: () -> Boolean = { false },
     content: @Composable () -> Unit,
 ) {
-    require(alpha in 0f..1f) { "마커 투명도는 0과 1 사이여야 합니다." }
     val onClickState = rememberUpdatedState(onClick)
-    val icon = rememberMarkerComposableImage(*keys, content = content)
+    val icon = rememberMarkerComposableImage(content = content)
     val effectiveStyle = if (icon.isReady) {
-        style
+        OverlayStyle(globalZIndex = MarkerDefaults.GlobalZIndex)
     } else {
-        style.copy(visible = false)
+        OverlayStyle(
+            visible = false,
+            globalZIndex = MarkerDefaults.GlobalZIndex,
+        )
     }
 
     rememberOverlay(
-        updateKey = listOf(state.position, captionText, alpha, effectiveStyle, icon),
+        updateKey = listOf(state.position, effectiveStyle, icon),
         create = ::createPlatformMarkerOverlay,
         update = { handle, overlay ->
             updatePlatformMarkerComposableOverlay(
@@ -43,8 +41,6 @@ fun MarkerComposable(
                 overlay = overlay,
                 position = state.position,
                 icon = icon,
-                captionText = captionText,
-                alpha = alpha,
                 style = effectiveStyle,
                 onClick = { onClickState.value() },
             )
@@ -55,7 +51,6 @@ fun MarkerComposable(
 
 @Composable
 internal fun rememberMarkerComposableImage(
-    vararg keys: Any?,
     content: @Composable () -> Unit,
 ): PlatformMarkerComposableImage {
     val density = LocalDensity.current
@@ -70,7 +65,6 @@ internal fun rememberMarkerComposableImage(
     return rememberPlatformMarkerComposableImage(
         density = density,
         layoutDirection = layoutDirection,
-        keys = keys,
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
@@ -91,7 +85,6 @@ internal fun rememberMarkerComposableImage(
 internal expect fun rememberPlatformMarkerComposableImage(
     density: androidx.compose.ui.unit.Density,
     layoutDirection: androidx.compose.ui.unit.LayoutDirection,
-    keys: Array<out Any?>,
     content: @Composable () -> Unit,
 ): PlatformMarkerComposableImage
 
@@ -104,8 +97,6 @@ internal expect fun updatePlatformMarkerComposableOverlay(
     overlay: PlatformMarkerOverlay,
     position: LatLng,
     icon: PlatformMarkerComposableImage,
-    captionText: String,
-    alpha: Float,
     style: OverlayStyle,
     onClick: () -> Boolean,
 )

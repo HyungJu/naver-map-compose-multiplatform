@@ -88,7 +88,6 @@ internal actual class PlatformMarkerComposableImage(
 internal actual fun rememberPlatformMarkerComposableImage(
     density: androidx.compose.ui.unit.Density,
     layoutDirection: androidx.compose.ui.unit.LayoutDirection,
-    keys: Array<out Any?>,
     content: @Composable () -> Unit,
 ): PlatformMarkerComposableImage {
     val parentViewController = LocalUIViewController.current
@@ -102,7 +101,6 @@ internal actual fun rememberPlatformMarkerComposableImage(
         density.density,
         density.fontScale,
         layoutDirection,
-        *keys,
     ) {
         repeat(2) {
             withFrameNanos { }
@@ -138,8 +136,6 @@ internal actual fun updatePlatformMarkerComposableOverlay(
     overlay: PlatformMarkerOverlay,
     position: LatLng,
     icon: PlatformMarkerComposableImage,
-    captionText: String,
-    alpha: Float,
     style: OverlayStyle,
     onClick: () -> Boolean,
 ) {
@@ -148,8 +144,8 @@ internal actual fun updatePlatformMarkerComposableOverlay(
         iconImage = icon.nativeImage
         width = icon.widthPoints
         height = icon.heightPoints
-        this.captionText = captionText
-        this.alpha = alpha.toDouble()
+        this.captionText = ""
+        this.alpha = 1.0
         applyMarkerCommonStyle(handle, style, onClick)
     }
 }
