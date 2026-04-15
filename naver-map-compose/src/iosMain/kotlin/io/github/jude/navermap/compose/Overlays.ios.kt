@@ -3,11 +3,16 @@
 package io.github.jude.navermap.compose
 
 import androidx.compose.ui.graphics.Color
+import cocoapods.NMapsMap.NMFArrowheadPath
 import cocoapods.NMapsMap.NMFCircleOverlay
 import cocoapods.NMapsMap.NMFGroundOverlay
+import cocoapods.NMapsMap.NMFLocationOverlay
 import cocoapods.NMapsMap.NMFMarker
+import cocoapods.NMapsMap.NMFMultipartPath
 import cocoapods.NMapsMap.NMFOverlay
 import cocoapods.NMapsMap.NMFOverlayImage
+import cocoapods.NMapsMap.NMFPath
+import cocoapods.NMapsMap.NMFPathColor
 import cocoapods.NMapsMap.NMFPolygonOverlay
 import cocoapods.NMapsMap.NMFPolylineOverlay
 import cocoapods.NMapsMap.NMF_MARKER_IMAGE_BLACK
@@ -23,6 +28,7 @@ import cocoapods.NMapsMap.NMGLatLng
 import cocoapods.NMapsMap.NMGLatLngBounds
 import cocoapods.NMapsMap.NMGLineString
 import cocoapods.NMapsMap.NMGPolygon
+import platform.CoreGraphics.CGPointMake
 import platform.UIKit.UIColor
 
 internal actual class PlatformMarkerOverlay(
@@ -190,10 +196,202 @@ internal actual fun disposePlatformGroundOverlay(overlay: PlatformGroundOverlay)
     overlay.nativeOverlay.mapView = null
 }
 
+internal actual class PlatformPathOverlay(
+    val nativeOverlay: NMFPath,
+)
+
+internal actual fun createPlatformPathOverlay(handle: PlatformMapHandle): PlatformPathOverlay {
+    return PlatformPathOverlay(NMFPath())
+}
+
+internal actual fun updatePlatformPathOverlay(
+    handle: PlatformMapHandle,
+    overlay: PlatformPathOverlay,
+    coordinates: List<LatLng>,
+    progress: Double,
+    width: Float,
+    outlineWidth: Float,
+    color: Color,
+    outlineColor: Color,
+    passedColor: Color,
+    passedOutlineColor: Color,
+    patternImage: OverlayImage?,
+    patternInterval: Float,
+    isHideCollidedSymbols: Boolean,
+    isHideCollidedMarkers: Boolean,
+    isHideCollidedCaptions: Boolean,
+    style: OverlayStyle,
+    onClick: () -> Boolean,
+) {
+    overlay.nativeOverlay.apply {
+        path = NMGLineString.lineStringWithPoints(coordinates.map(LatLng::toNativeLatLng))
+        this.progress = progress
+        this.width = width.toDouble()
+        this.outlineWidth = outlineWidth.toDouble()
+        this.color = color.toUIColor()
+        this.outlineColor = outlineColor.toUIColor()
+        this.passedColor = passedColor.toUIColor()
+        this.passedOutlineColor = passedOutlineColor.toUIColor()
+        patternIcon = patternImage?.toNativeOverlayImage()
+        this.patternInterval = patternInterval.toULong()
+        this.isHideCollidedSymbols = isHideCollidedSymbols
+        this.isHideCollidedMarkers = isHideCollidedMarkers
+        this.isHideCollidedCaptions = isHideCollidedCaptions
+        applyCommonStyle(handle, style, onClick)
+    }
+}
+
+internal actual fun disposePlatformPathOverlay(overlay: PlatformPathOverlay) {
+    overlay.nativeOverlay.touchHandler = null
+    overlay.nativeOverlay.mapView = null
+}
+
+internal actual class PlatformMultipartPathOverlay(
+    val nativeOverlay: NMFMultipartPath,
+)
+
+internal actual fun createPlatformMultipartPathOverlay(handle: PlatformMapHandle): PlatformMultipartPathOverlay {
+    return PlatformMultipartPathOverlay(NMFMultipartPath())
+}
+
+internal actual fun updatePlatformMultipartPathOverlay(
+    handle: PlatformMapHandle,
+    overlay: PlatformMultipartPathOverlay,
+    coordinateParts: List<List<LatLng>>,
+    colorParts: List<ColorPart>,
+    progress: Double,
+    width: Float,
+    outlineWidth: Float,
+    patternImage: OverlayImage?,
+    patternInterval: Float,
+    isHideCollidedSymbols: Boolean,
+    isHideCollidedMarkers: Boolean,
+    isHideCollidedCaptions: Boolean,
+    style: OverlayStyle,
+    onClick: () -> Boolean,
+) {
+    overlay.nativeOverlay.apply {
+        lineParts = coordinateParts.map { part ->
+            NMGLineString.lineStringWithPoints(part.map(LatLng::toNativeLatLng))
+        }
+        this.colorParts = colorParts.map(ColorPart::toNativePathColor)
+        this.progress = progress
+        this.width = width.toDouble()
+        this.outlineWidth = outlineWidth.toDouble()
+        patternIcon = patternImage?.toNativeOverlayImage()
+        this.patternInterval = patternInterval.toULong()
+        this.isHideCollidedSymbols = isHideCollidedSymbols
+        this.isHideCollidedMarkers = isHideCollidedMarkers
+        this.isHideCollidedCaptions = isHideCollidedCaptions
+        applyCommonStyle(handle, style, onClick)
+    }
+}
+
+internal actual fun disposePlatformMultipartPathOverlay(overlay: PlatformMultipartPathOverlay) {
+    overlay.nativeOverlay.touchHandler = null
+    overlay.nativeOverlay.mapView = null
+}
+
+internal actual class PlatformArrowheadPathOverlay(
+    val nativeOverlay: NMFArrowheadPath,
+)
+
+internal actual fun createPlatformArrowheadPathOverlay(handle: PlatformMapHandle): PlatformArrowheadPathOverlay {
+    return PlatformArrowheadPathOverlay(NMFArrowheadPath())
+}
+
+internal actual fun updatePlatformArrowheadPathOverlay(
+    handle: PlatformMapHandle,
+    overlay: PlatformArrowheadPathOverlay,
+    coordinates: List<LatLng>,
+    width: Float,
+    headSizeRatio: Float,
+    color: Color,
+    outlineWidth: Float,
+    outlineColor: Color,
+    elevation: Float,
+    style: OverlayStyle,
+    onClick: () -> Boolean,
+) {
+    overlay.nativeOverlay.apply {
+        points = coordinates.map(LatLng::toNativeLatLng)
+        this.width = width.toDouble()
+        this.headSizeRatio = headSizeRatio.toDouble()
+        this.color = color.toUIColor()
+        this.outlineWidth = outlineWidth.toDouble()
+        this.outlineColor = outlineColor.toUIColor()
+        this.elevation = elevation.toDouble()
+        applyCommonStyle(handle, style, onClick)
+    }
+}
+
+internal actual fun disposePlatformArrowheadPathOverlay(overlay: PlatformArrowheadPathOverlay) {
+    overlay.nativeOverlay.touchHandler = null
+    overlay.nativeOverlay.mapView = null
+}
+
+internal actual class PlatformLocationOverlay(
+    val nativeOverlay: NMFLocationOverlay,
+)
+
+internal actual fun createPlatformLocationOverlay(handle: PlatformMapHandle): PlatformLocationOverlay {
+    return PlatformLocationOverlay(handle.nativeMap.locationOverlay)
+}
+
+internal actual fun updatePlatformLocationOverlay(
+    handle: PlatformMapHandle,
+    overlay: PlatformLocationOverlay,
+    position: LatLng,
+    bearing: Float,
+    icon: OverlayImage,
+    iconWidth: Float?,
+    iconHeight: Float?,
+    iconAlpha: Float,
+    anchor: AnchorPoint,
+    subIcon: OverlayImage?,
+    subIconWidth: Float?,
+    subIconHeight: Float?,
+    subIconAlpha: Float,
+    subAnchor: AnchorPoint,
+    circleRadius: Float,
+    circleColor: Color,
+    circleOutlineWidth: Float,
+    circleOutlineColor: Color,
+    style: OverlayStyle,
+    onClick: () -> Boolean,
+) {
+    overlay.nativeOverlay.apply {
+        location = position.toNativeLatLng()
+        heading = bearing.toDouble()
+        this.icon = icon.toNativeOverlayImage()
+        this.iconWidth = iconWidth?.toDouble() ?: 0.0
+        this.iconHeight = iconHeight?.toDouble() ?: 0.0
+        this.iconAlpha = iconAlpha.toDouble()
+        this.anchor = anchor.toNativeAnchor()
+        this.subIcon = subIcon?.toNativeOverlayImage()
+        this.subIconWidth = subIconWidth?.toDouble() ?: 0.0
+        this.subIconHeight = subIconHeight?.toDouble() ?: 0.0
+        this.subIconAlpha = subIconAlpha.toDouble()
+        this.subAnchor = subAnchor.toNativeAnchor()
+        this.circleRadius = circleRadius.toDouble()
+        this.circleColor = circleColor.toUIColor()
+        this.circleOutlineWidth = circleOutlineWidth.toDouble()
+        this.circleOutlineColor = circleOutlineColor.toUIColor()
+        applyCommonStyle(handle, style, onClick, attachToMap = false)
+        hidden = !style.visible
+    }
+}
+
+internal actual fun disposePlatformLocationOverlay(overlay: PlatformLocationOverlay) {
+    overlay.nativeOverlay.touchHandler = null
+    overlay.nativeOverlay.hidden = true
+}
+
 private fun NMFOverlay.applyCommonStyle(
     handle: PlatformMapHandle,
     style: OverlayStyle,
     onClick: () -> Boolean,
+    attachToMap: Boolean = true,
 ) {
     userInfo = style.tag?.let { mapOf("tag" to it) } ?: emptyMap<Any?, Any?>()
     hidden = !style.visible
@@ -204,7 +402,9 @@ private fun NMFOverlay.applyCommonStyle(
     zIndex = style.zIndex.toLong()
     globalZIndex = style.globalZIndex.toLong()
     touchHandler = { _ -> onClick() }
-    mapView = handle.nativeMap
+    if (attachToMap) {
+        mapView = handle.nativeMap
+    }
 }
 
 private fun LatLng.toNativeLatLng(): NMGLatLng {
@@ -218,6 +418,8 @@ private fun LatLngBounds.toNativeBounds(): NMGLatLngBounds {
     )
 }
 
+private fun AnchorPoint.toNativeAnchor() = CGPointMake(x.toDouble(), y.toDouble())
+
 private fun OverlayImage.toNativeOverlayImage(): NMFOverlayImage {
     return when (this) {
         OverlayImage.DefaultMarker -> NMF_MARKER_IMAGE_DEFAULT
@@ -229,7 +431,17 @@ private fun OverlayImage.toNativeOverlayImage(): NMFOverlayImage {
         OverlayImage.RedMarker -> NMF_MARKER_IMAGE_RED
         OverlayImage.YellowMarker -> NMF_MARKER_IMAGE_YELLOW
         OverlayImage.BlackMarker -> NMF_MARKER_IMAGE_BLACK
+        OverlayImage.LocationDefault -> NMFLocationOverlay.defaultIconImage()
     }
+}
+
+private fun ColorPart.toNativePathColor(): NMFPathColor {
+    return NMFPathColor.pathColorWithColor(
+        color = color.toUIColor(),
+        outlineColor = outlineColor.toUIColor(),
+        passedColor = passedColor.toUIColor(),
+        passedOutlineColor = passedOutlineColor.toUIColor(),
+    )
 }
 
 private fun Color.toUIColor(): UIColor {

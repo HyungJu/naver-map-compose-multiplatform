@@ -36,6 +36,21 @@ data class ScreenPoint(
     val y: Float,
 )
 
+data class AnchorPoint(
+    val x: Float,
+    val y: Float,
+) {
+    init {
+        require(x in 0f..1f) { "앵커 X 좌표는 0과 1 사이여야 합니다." }
+        require(y in 0f..1f) { "앵커 Y 좌표는 0과 1 사이여야 합니다." }
+    }
+}
+
+object AnchorPoints {
+    val Center = AnchorPoint(x = 0.5f, y = 0.5f)
+    val BottomCenter = AnchorPoint(x = 0.5f, y = 1f)
+}
+
 data class MapSymbol(
     val caption: String,
     val position: LatLng,

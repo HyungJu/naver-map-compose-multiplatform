@@ -72,14 +72,18 @@ private class ManagedNaverMapView {
     private var indoorSelectionDelegate: NMFIndoorSelectionDelegateProtocol? = null
     private var locationDelegate: NMFLocationManagerDelegateProtocol? = null
     private var loadDelivered = false
+    private var lastAppliedConfiguration: MapConfiguration? = null
+    private var currentOnMapClick: (ScreenPoint, LatLng) -> Unit = { _, _ -> }
+    private var currentOnMapLongClick: (ScreenPoint, LatLng) -> Unit = { _, _ -> }
+    private var currentOnMapLoaded: () -> Unit = {}
+    private var currentOnOptionChange: () -> Unit = {}
+    private var currentOnSymbolClick: (MapSymbol) -> Boolean = { false }
+    private var currentOnIndoorSelectionChange: (IndoorSelectionInfo?) -> Unit = {}
+    private var currentOnLocationChange: (MapLocation) -> Unit = {}
 
     fun bindCameraState(cameraPositionState: CameraPositionState) {
         val map = container.mapView
         if (boundCameraState === cameraPositionState) {
-            cameraPositionState.updateFromMap(
-                position = map.cameraPosition.toCommonCameraPosition(),
-                locationTrackingMode = map.positionMode.toCommonTrackingMode(),
-            )
             return
         }
 
@@ -143,73 +147,106 @@ private class ManagedNaverMapView {
         onLocationChange: (MapLocation) -> Unit,
     ) {
         val map = container.mapView
+        currentOnMapClick = onMapClick
+        currentOnMapLongClick = onMapLongClick
+        currentOnMapLoaded = onMapLoaded
+        currentOnOptionChange = onOptionChange
+        currentOnSymbolClick = onSymbolClick
+        currentOnIndoorSelectionChange = onIndoorSelectionChange
+        currentOnLocationChange = onLocationChange
 
-        touchDelegate = object : NSObject(), NMFMapViewTouchDelegateProtocol {
-            @ObjCSignatureOverride
-            override fun mapView(mapView: NMFMapView, didTapMap: NMGLatLng, point: CValue<CGPoint>) {
-                onMapClick(point.toCommonScreenPoint(), didTapMap.toCommonLatLng())
-            }
+        if (touchDelegate == null) {
+            touchDelegate = object : NSObject(), NMFMapViewTouchDelegateProtocol {
+                @ObjCSignatureOverride
+                override fun mapView(mapView: NMFMapView, didTapMap: NMGLatLng, point: CValue<CGPoint>) {
+                    currentOnMapClick(point.toCommonScreenPoint(), didTapMap.toCommonLatLng())
+                }
 
-            @ObjCSignatureOverride
-            override fun mapView(mapView: NMFMapView, didLongTapMap: NMGLatLng, point: CValue<CGPoint>) {
-                onMapLongClick(point.toCommonScreenPoint(), didLongTapMap.toCommonLatLng())
-            }
+                @ObjCSignatureOverride
+                override fun mapView(mapView: NMFMapView, didLongTapMap: NMGLatLng, point: CValue<CGPoint>) {
+                    currentOnMapLongClick(point.toCommonScreenPoint(), didLongTapMap.toCommonLatLng())
+                }
 
-            @ObjCSignatureOverride
-            override fun mapView(mapView: NMFMapView, didTapSymbol: NMFSymbol): Boolean {
-                val position = didTapSymbol.position ?: return false
-                return onSymbolClick(
-                    MapSymbol(
-                        caption = didTapSymbol.caption ?: "",
-                        position = position.toCommonLatLng(),
-                    ),
-                )
+                @ObjCSignatureOverride
+                override fun mapView(mapView: NMFMapView, didTapSymbol: NMFSymbol): Boolean {
+                    val position = didTapSymbol.position ?: return false
+                    return currentOnSymbolClick(
+                        MapSymbol(
+                            caption = didTapSymbol.caption ?: "",
+                            position = position.toCommonLatLng(),
+                        ),
+                    )
+                }
             }
+            map.touchDelegate = touchDelegate
         }
-        map.touchDelegate = touchDelegate
 
-        optionDelegate?.let(map::removeOptionDelegate)
-        optionDelegate = object : NSObject(), NMFMapViewOptionDelegateProtocol {
-            override fun mapViewOptionChanged(mapView: NMFMapView) {
-                onOptionChange()
-            }
-        }.also(map::addOptionDelegate)
+        if (optionDelegate == null) {
+            optionDelegate = object : NSObject(), NMFMapViewOptionDelegateProtocol {
+                override fun mapViewOptionChanged(mapView: NMFMapView) {
+                    currentOnOptionChange()
+                }
+            }.also(map::addOptionDelegate)
+        }
 
-        indoorSelectionDelegate?.let(map::removeIndoorSelectionDelegate)
-        indoorSelectionDelegate = object : NSObject(), NMFIndoorSelectionDelegateProtocol {
-            override fun indoorSelectionDidChanged(indoorSelection: NMFIndoorSelection?) {
-                onIndoorSelectionChange(indoorSelection?.toIndoorSelectionInfo())
-            }
-        }.also(map::addIndoorSelectionDelegate)
+        if (indoorSelectionDelegate == null) {
+            indoorSelectionDelegate = object : NSObject(), NMFIndoorSelectionDelegateProtocol {
+                override fun indoorSelectionDidChanged(indoorSelection: NMFIndoorSelection?) {
+                    currentOnIndoorSelectionChange(indoorSelection?.toIndoorSelectionInfo())
+                }
+            }.also(map::addIndoorSelectionDelegate)
+        }
 
         if (map.loaded) {
-            loadDelivered = true
-            onMapLoaded()
+            if (!loadDelivered) {
+                loadDelivered = true
+                currentOnMapLoaded()
+            }
         } else {
-            loadDelegate?.let(map::removeLoadDelegate)
-            loadDelegate = object : NSObject(), NMFMapViewLoadDelegateProtocol {
-                override fun mapViewDidFinishLoadingMap(mapView: NMFMapView) {
-                    loadDelivered = true
-                    onMapLoaded()
-                }
-            }.also(map::addLoadDelegate)
+            if (loadDelegate == null) {
+                loadDelegate = object : NSObject(), NMFMapViewLoadDelegateProtocol {
+                    override fun mapViewDidFinishLoadingMap(mapView: NMFMapView) {
+                        loadDelivered = true
+                        currentOnMapLoaded()
+                    }
+                }.also(map::addLoadDelegate)
+            }
         }
 
         val sharedLocationManager = NMFLocationManager.sharedInstance()
         if (sharedLocationManager != null) {
-            locationDelegate?.let(sharedLocationManager::removeDelegate)
-            locationDelegate = object : NSObject(), NMFLocationManagerDelegateProtocol {
-                override fun locationManager(
-                    locationManager: NMFLocationManager?,
-                    didUpdateLocations: List<*>?,
-                ) {
-                    val lastLocation = didUpdateLocations?.lastOrNull() as? CLLocation ?: return
-                    onLocationChange(lastLocation.toCommonMapLocation())
-                }
-            }.also(sharedLocationManager::addDelegate)
+            if (locationDelegate == null) {
+                locationDelegate = object : NSObject(), NMFLocationManagerDelegateProtocol {
+                    override fun locationManager(
+                        locationManager: NMFLocationManager?,
+                        didUpdateLocations: List<*>?,
+                    ) {
+                        val lastLocation = didUpdateLocations?.lastOrNull() as? CLLocation ?: return
+                        currentOnLocationChange(lastLocation.toCommonMapLocation())
+                    }
+                }.also(sharedLocationManager::addDelegate)
+            }
         } else {
             locationDelegate = null
         }
+    }
+
+    fun applyConfiguration(
+        configuration: MapConfiguration,
+        cameraPositionState: CameraPositionState,
+    ) {
+        if (lastAppliedConfiguration === configuration) {
+            return
+        }
+        container.applyMapState(
+            cameraPositionState = cameraPositionState,
+            properties = configuration.properties,
+            uiSettings = configuration.uiSettings,
+            locale = configuration.locale,
+            contentPadding = configuration.contentPadding,
+            layoutDirection = configuration.layoutDirection,
+        )
+        lastAppliedConfiguration = configuration
     }
 
     fun clearEventBindings() {
@@ -251,6 +288,15 @@ internal actual fun PlatformNaverMap(
     content: @Composable () -> Unit,
 ) {
     val layoutDirection = LocalLayoutDirection.current
+    val mapConfiguration = remember(properties, uiSettings, locale, contentPadding, layoutDirection) {
+        MapConfiguration(
+            properties = properties,
+            uiSettings = uiSettings,
+            locale = locale,
+            contentPadding = contentPadding,
+            layoutDirection = layoutDirection,
+        )
+    }
     val managedMapView = remember { mutableStateOf<ManagedNaverMapView?>(null) }
     val platformMapHandleState = remember { mutableStateOf<PlatformMapHandle?>(null) }
 
@@ -271,14 +317,7 @@ internal actual fun PlatformNaverMap(
                     onIndoorSelectionChange = onIndoorSelectionChange,
                     onLocationChange = onLocationChange,
                 )
-                managed.container.applyMapState(
-                    cameraPositionState = cameraPositionState,
-                    properties = properties,
-                    uiSettings = uiSettings,
-                    locale = locale,
-                    contentPadding = contentPadding,
-                    layoutDirection = layoutDirection,
-                )
+                managed.applyConfiguration(mapConfiguration, cameraPositionState)
                 managedMapView.value = managed
                 managed.container
             },
@@ -295,14 +334,7 @@ internal actual fun PlatformNaverMap(
                     onIndoorSelectionChange = onIndoorSelectionChange,
                     onLocationChange = onLocationChange,
                 )
-                container.applyMapState(
-                    cameraPositionState = cameraPositionState,
-                    properties = properties,
-                    uiSettings = uiSettings,
-                    locale = locale,
-                    contentPadding = contentPadding,
-                    layoutDirection = layoutDirection,
-                )
+                managed.applyConfiguration(mapConfiguration, cameraPositionState)
             },
         )
         content()
@@ -316,6 +348,14 @@ internal actual fun PlatformNaverMap(
         }
     }
 }
+
+private data class MapConfiguration(
+    val properties: MapProperties,
+    val uiSettings: MapUiSettings,
+    val locale: String?,
+    val contentPadding: PaddingValues,
+    val layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+)
 
 private fun NMFNaverMapView.applyMapState(
     cameraPositionState: CameraPositionState,

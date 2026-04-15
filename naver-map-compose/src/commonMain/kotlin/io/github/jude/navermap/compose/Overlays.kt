@@ -3,11 +3,11 @@ package io.github.jude.navermap.compose
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -63,6 +63,7 @@ enum class OverlayImage {
     RedMarker,
     YellowMarker,
     BlackMarker,
+    LocationDefault,
 }
 
 enum class LineCap {
@@ -76,6 +77,42 @@ enum class LineJoin {
     Bevel,
     Round,
 }
+
+enum class Align {
+    Center,
+    Left,
+    Right,
+    Top,
+    Bottom,
+    TopLeft,
+    TopRight,
+    BottomRight,
+    BottomLeft,
+    ;
+
+    companion object {
+        val EDGES = listOf(Bottom, Right, Left, Top)
+        val APEXES = listOf(BottomRight, BottomLeft, TopRight, TopLeft)
+        val OUTSIDES = listOf(
+            Bottom,
+            Right,
+            Left,
+            Top,
+            BottomRight,
+            BottomLeft,
+            TopRight,
+            TopLeft,
+        )
+    }
+}
+
+@Immutable
+data class ColorPart(
+    val color: Color = Color.White,
+    val outlineColor: Color = Color.Black,
+    val passedColor: Color = Color.White,
+    val passedOutlineColor: Color = Color.Black,
+)
 
 @Immutable
 data class OverlayStyle(
@@ -116,6 +153,37 @@ object GroundOverlayDefaults {
     val Image: OverlayImage = OverlayImage.DefaultMarker
 }
 
+object PathOverlayDefaults {
+    const val GlobalZIndex: Int = -100_000
+    val Width: Dp = 10.dp
+    val OutlineWidth: Dp = 2.dp
+    val PatternInterval: Dp = 50.dp
+}
+
+object MultipartPathOverlayDefaults {
+    const val GlobalZIndex: Int = -100_000
+    val Width: Dp = 10.dp
+    val OutlineWidth: Dp = 2.dp
+    val PatternInterval: Dp = 50.dp
+}
+
+object ArrowheadPathOverlayDefaults {
+    const val GlobalZIndex: Int = 100_000
+    val Width: Dp = 10.dp
+    val OutlineWidth: Dp = 2.dp
+    val Elevation: Dp = 0.dp
+}
+
+object LocationOverlayDefaults {
+    const val GlobalZIndex: Int = 300_000
+    val Icon: OverlayImage = OverlayImage.LocationDefault
+    val SizeAuto: Dp = Dp.Unspecified
+    val DefaultAnchor: AnchorPoint = AnchorPoints.Center
+    val DefaultSubAnchor: AnchorPoint = AnchorPoints.BottomCenter
+    val DefaultCircleColor: Color = Color(0xFF3D8BFF)
+    val DefaultCircleRadius: Dp = 18.dp
+}
+
 @Composable
 fun Marker(
     state: MarkerState = rememberUpdatedMarkerState(),
@@ -126,8 +194,10 @@ fun Marker(
     onClick: () -> Boolean = { false },
 ) {
     require(alpha in 0f..1f) { "마커 투명도는 0과 1 사이여야 합니다." }
+    val onClickState = rememberUpdatedState(onClick)
 
     rememberOverlay(
+        updateKey = listOf(state.position, icon, captionText, alpha, style),
         create = ::createPlatformMarkerOverlay,
         update = { handle, overlay ->
             updatePlatformMarkerOverlay(
@@ -138,7 +208,7 @@ fun Marker(
                 captionText = captionText,
                 alpha = alpha,
                 style = style,
-                onClick = onClick,
+                onClick = { onClickState.value() },
             )
         },
         dispose = ::disposePlatformMarkerOverlay,
@@ -157,8 +227,10 @@ fun CircleOverlay(
 ) {
     require(radiusMeters >= 0.0) { "원 오버레이 반경은 0 이상이어야 합니다." }
     val outlineWidthValue = with(LocalDensity.current) { outlineWidth.toPx() }
+    val onClickState = rememberUpdatedState(onClick)
 
     rememberOverlay(
+        updateKey = listOf(center, radiusMeters, fillColor, outlineWidth, outlineColor, style),
         create = ::createPlatformCircleOverlay,
         update = { handle, overlay ->
             updatePlatformCircleOverlay(
@@ -170,7 +242,7 @@ fun CircleOverlay(
                 outlineWidth = outlineWidthValue,
                 outlineColor = outlineColor,
                 style = style,
-                onClick = onClick,
+                onClick = { onClickState.value() },
             )
         },
         dispose = ::disposePlatformCircleOverlay,
@@ -189,8 +261,10 @@ fun PolygonOverlay(
 ) {
     require(coordinates.size >= 3) { "폴리곤 오버레이는 최소 3개의 좌표가 필요합니다." }
     val outlineWidthValue = with(LocalDensity.current) { outlineWidth.toPx() }
+    val onClickState = rememberUpdatedState(onClick)
 
     rememberOverlay(
+        updateKey = listOf(coordinates, fillColor, outlineWidth, outlineColor, outlinePattern, style),
         create = ::createPlatformPolygonOverlay,
         update = { handle, overlay ->
             updatePlatformPolygonOverlay(
@@ -202,7 +276,7 @@ fun PolygonOverlay(
                 outlineColor = outlineColor,
                 outlinePattern = outlinePattern,
                 style = style,
-                onClick = onClick,
+                onClick = { onClickState.value() },
             )
         },
         dispose = ::disposePlatformPolygonOverlay,
@@ -222,8 +296,10 @@ fun PolylineOverlay(
 ) {
     require(coordinates.size >= 2) { "폴리라인 오버레이는 최소 2개의 좌표가 필요합니다." }
     val widthValue = with(LocalDensity.current) { width.toPx() }
+    val onClickState = rememberUpdatedState(onClick)
 
     rememberOverlay(
+        updateKey = listOf(coordinates, width, color, pattern, cap, join, style),
         create = ::createPlatformPolylineOverlay,
         update = { handle, overlay ->
             updatePlatformPolylineOverlay(
@@ -236,7 +312,7 @@ fun PolylineOverlay(
                 cap = cap,
                 join = join,
                 style = style,
-                onClick = onClick,
+                onClick = { onClickState.value() },
             )
         },
         dispose = ::disposePlatformPolylineOverlay,
@@ -252,8 +328,10 @@ fun GroundOverlay(
     onClick: () -> Boolean = { false },
 ) {
     require(alpha in 0f..1f) { "지상 오버레이 투명도는 0과 1 사이여야 합니다." }
+    val onClickState = rememberUpdatedState(onClick)
 
     rememberOverlay(
+        updateKey = listOf(bounds, image, alpha, style),
         create = ::createPlatformGroundOverlay,
         update = { handle, overlay ->
             updatePlatformGroundOverlay(
@@ -263,7 +341,7 @@ fun GroundOverlay(
                 image = image,
                 alpha = alpha,
                 style = style,
-                onClick = onClick,
+                onClick = { onClickState.value() },
             )
         },
         dispose = ::disposePlatformGroundOverlay,
@@ -271,7 +349,277 @@ fun GroundOverlay(
 }
 
 @Composable
+fun PathOverlay(
+    coordinates: List<LatLng>,
+    progress: Double = 0.0,
+    width: Dp = PathOverlayDefaults.Width,
+    outlineWidth: Dp = PathOverlayDefaults.OutlineWidth,
+    color: Color = Color.White,
+    outlineColor: Color = Color.Black,
+    passedColor: Color = Color.White,
+    passedOutlineColor: Color = Color.Black,
+    patternImage: OverlayImage? = null,
+    patternInterval: Dp = PathOverlayDefaults.PatternInterval,
+    isHideCollidedSymbols: Boolean = false,
+    isHideCollidedMarkers: Boolean = false,
+    isHideCollidedCaptions: Boolean = false,
+    style: OverlayStyle = OverlayStyle(globalZIndex = PathOverlayDefaults.GlobalZIndex),
+    onClick: () -> Boolean = { false },
+) {
+    require(coordinates.size >= 2) { "경로 오버레이는 최소 2개의 좌표가 필요합니다." }
+    require(progress in -1.0..1.0) { "경로 진척률은 -1과 1 사이여야 합니다." }
+    require(patternInterval.value >= 0f) { "경로 패턴 간격은 0 이상이어야 합니다." }
+    val widthValue = with(LocalDensity.current) { width.toPx() }
+    val outlineWidthValue = with(LocalDensity.current) { outlineWidth.toPx() }
+    val patternIntervalValue = with(LocalDensity.current) { patternInterval.toPx() }
+    val onClickState = rememberUpdatedState(onClick)
+
+    rememberOverlay(
+        updateKey = listOf(
+            coordinates,
+            progress,
+            width,
+            outlineWidth,
+            color,
+            outlineColor,
+            passedColor,
+            passedOutlineColor,
+            patternImage,
+            patternInterval,
+            isHideCollidedSymbols,
+            isHideCollidedMarkers,
+            isHideCollidedCaptions,
+            style,
+        ),
+        create = ::createPlatformPathOverlay,
+        update = { handle, overlay ->
+            updatePlatformPathOverlay(
+                handle = handle,
+                overlay = overlay,
+                coordinates = coordinates,
+                progress = progress,
+                width = widthValue,
+                outlineWidth = outlineWidthValue,
+                color = color,
+                outlineColor = outlineColor,
+                passedColor = passedColor,
+                passedOutlineColor = passedOutlineColor,
+                patternImage = patternImage,
+                patternInterval = patternIntervalValue,
+                isHideCollidedSymbols = isHideCollidedSymbols,
+                isHideCollidedMarkers = isHideCollidedMarkers,
+                isHideCollidedCaptions = isHideCollidedCaptions,
+                style = style,
+                onClick = { onClickState.value() },
+            )
+        },
+        dispose = ::disposePlatformPathOverlay,
+    )
+}
+
+@Composable
+fun MultipartPathOverlay(
+    coordinateParts: List<List<LatLng>>,
+    colorParts: List<ColorPart>,
+    progress: Double = 0.0,
+    width: Dp = MultipartPathOverlayDefaults.Width,
+    outlineWidth: Dp = MultipartPathOverlayDefaults.OutlineWidth,
+    patternImage: OverlayImage? = null,
+    patternInterval: Dp = MultipartPathOverlayDefaults.PatternInterval,
+    isHideCollidedSymbols: Boolean = false,
+    isHideCollidedMarkers: Boolean = false,
+    isHideCollidedCaptions: Boolean = false,
+    style: OverlayStyle = OverlayStyle(globalZIndex = MultipartPathOverlayDefaults.GlobalZIndex),
+    onClick: () -> Boolean = { false },
+) {
+    require(coordinateParts.isNotEmpty()) { "멀티 파트 경로 오버레이는 최소 1개의 경로 파트가 필요합니다." }
+    require(coordinateParts.all { it.size >= 2 }) { "모든 멀티 파트 경로는 최소 2개의 좌표가 필요합니다." }
+    require(colorParts.isNotEmpty()) { "멀티 파트 경로 색상 파트는 비어 있을 수 없습니다." }
+    require(coordinateParts.size == colorParts.size) { "경로 파트 수와 색상 파트 수는 같아야 합니다." }
+    require(progress in -1.0..1.0) { "경로 진척률은 -1과 1 사이여야 합니다." }
+    require(patternInterval.value >= 0f) { "경로 패턴 간격은 0 이상이어야 합니다." }
+    val widthValue = with(LocalDensity.current) { width.toPx() }
+    val outlineWidthValue = with(LocalDensity.current) { outlineWidth.toPx() }
+    val patternIntervalValue = with(LocalDensity.current) { patternInterval.toPx() }
+    val onClickState = rememberUpdatedState(onClick)
+
+    rememberOverlay(
+        updateKey = listOf(
+            coordinateParts,
+            colorParts,
+            progress,
+            width,
+            outlineWidth,
+            patternImage,
+            patternInterval,
+            isHideCollidedSymbols,
+            isHideCollidedMarkers,
+            isHideCollidedCaptions,
+            style,
+        ),
+        create = ::createPlatformMultipartPathOverlay,
+        update = { handle, overlay ->
+            updatePlatformMultipartPathOverlay(
+                handle = handle,
+                overlay = overlay,
+                coordinateParts = coordinateParts,
+                colorParts = colorParts,
+                progress = progress,
+                width = widthValue,
+                outlineWidth = outlineWidthValue,
+                patternImage = patternImage,
+                patternInterval = patternIntervalValue,
+                isHideCollidedSymbols = isHideCollidedSymbols,
+                isHideCollidedMarkers = isHideCollidedMarkers,
+                isHideCollidedCaptions = isHideCollidedCaptions,
+                style = style,
+                onClick = { onClickState.value() },
+            )
+        },
+        dispose = ::disposePlatformMultipartPathOverlay,
+    )
+}
+
+@Composable
+fun ArrowheadPathOverlay(
+    coordinates: List<LatLng>,
+    width: Dp = ArrowheadPathOverlayDefaults.Width,
+    headSizeRatio: Float = 2.5f,
+    color: Color = Color.White,
+    outlineWidth: Dp = ArrowheadPathOverlayDefaults.OutlineWidth,
+    outlineColor: Color = Color.Black,
+    elevation: Dp = ArrowheadPathOverlayDefaults.Elevation,
+    style: OverlayStyle = OverlayStyle(globalZIndex = ArrowheadPathOverlayDefaults.GlobalZIndex),
+    onClick: () -> Boolean = { false },
+) {
+    require(coordinates.size >= 2) { "화살표 경로 오버레이는 최소 2개의 좌표가 필요합니다." }
+    require(headSizeRatio > 0f) { "화살표 머리 배율은 0보다 커야 합니다." }
+    val widthValue = with(LocalDensity.current) { width.toPx() }
+    val outlineWidthValue = with(LocalDensity.current) { outlineWidth.toPx() }
+    val elevationValue = with(LocalDensity.current) { elevation.toPx() }
+    val onClickState = rememberUpdatedState(onClick)
+
+    rememberOverlay(
+        updateKey = listOf(
+            coordinates,
+            width,
+            headSizeRatio,
+            color,
+            outlineWidth,
+            outlineColor,
+            elevation,
+            style,
+        ),
+        create = ::createPlatformArrowheadPathOverlay,
+        update = { handle, overlay ->
+            updatePlatformArrowheadPathOverlay(
+                handle = handle,
+                overlay = overlay,
+                coordinates = coordinates,
+                width = widthValue,
+                headSizeRatio = headSizeRatio,
+                color = color,
+                outlineWidth = outlineWidthValue,
+                outlineColor = outlineColor,
+                elevation = elevationValue,
+                style = style,
+                onClick = { onClickState.value() },
+            )
+        },
+        dispose = ::disposePlatformArrowheadPathOverlay,
+    )
+}
+
+@Composable
+fun LocationOverlay(
+    position: LatLng,
+    bearing: Float = 0f,
+    icon: OverlayImage = LocationOverlayDefaults.Icon,
+    iconWidth: Dp = LocationOverlayDefaults.SizeAuto,
+    iconHeight: Dp = LocationOverlayDefaults.SizeAuto,
+    iconAlpha: Float = 1f,
+    anchor: AnchorPoint = LocationOverlayDefaults.DefaultAnchor,
+    subIcon: OverlayImage? = null,
+    subIconWidth: Dp = LocationOverlayDefaults.SizeAuto,
+    subIconHeight: Dp = LocationOverlayDefaults.SizeAuto,
+    subIconAlpha: Float = 1f,
+    subAnchor: AnchorPoint = LocationOverlayDefaults.DefaultSubAnchor,
+    circleRadius: Dp = LocationOverlayDefaults.DefaultCircleRadius,
+    circleColor: Color = LocationOverlayDefaults.DefaultCircleColor,
+    circleOutlineWidth: Dp = 0.dp,
+    circleOutlineColor: Color = Color.Transparent,
+    style: OverlayStyle = OverlayStyle(globalZIndex = LocationOverlayDefaults.GlobalZIndex),
+    onClick: () -> Boolean = { false },
+) {
+    require(bearing in 0f..360f) { "위치 오버레이 방위는 0도에서 360도 사이여야 합니다." }
+    require(iconAlpha in 0f..1f) { "위치 오버레이 아이콘 투명도는 0과 1 사이여야 합니다." }
+    require(subIconAlpha in 0f..1f) { "위치 오버레이 보조 아이콘 투명도는 0과 1 사이여야 합니다." }
+    require(circleRadius.value >= 0f) { "위치 오버레이 원 반경은 0 이상이어야 합니다." }
+    requireAutoOrNonNegative(iconWidth, "위치 오버레이 아이콘 너비")
+    requireAutoOrNonNegative(iconHeight, "위치 오버레이 아이콘 높이")
+    requireAutoOrNonNegative(subIconWidth, "위치 오버레이 보조 아이콘 너비")
+    requireAutoOrNonNegative(subIconHeight, "위치 오버레이 보조 아이콘 높이")
+    val density = LocalDensity.current
+    val iconWidthValue = iconWidth.toAutoSizePxOrNull(density)
+    val iconHeightValue = iconHeight.toAutoSizePxOrNull(density)
+    val subIconWidthValue = subIconWidth.toAutoSizePxOrNull(density)
+    val subIconHeightValue = subIconHeight.toAutoSizePxOrNull(density)
+    val circleRadiusValue = with(density) { circleRadius.toPx() }
+    val circleOutlineWidthValue = with(density) { circleOutlineWidth.toPx() }
+    val onClickState = rememberUpdatedState(onClick)
+
+    rememberOverlay(
+        updateKey = listOf(
+            position,
+            bearing,
+            icon,
+            iconWidth,
+            iconHeight,
+            iconAlpha,
+            anchor,
+            subIcon,
+            subIconWidth,
+            subIconHeight,
+            subIconAlpha,
+            subAnchor,
+            circleRadius,
+            circleColor,
+            circleOutlineWidth,
+            circleOutlineColor,
+            style,
+        ),
+        create = ::createPlatformLocationOverlay,
+        update = { handle, overlay ->
+            updatePlatformLocationOverlay(
+                handle = handle,
+                overlay = overlay,
+                position = position,
+                bearing = bearing,
+                icon = icon,
+                iconWidth = iconWidthValue,
+                iconHeight = iconHeightValue,
+                iconAlpha = iconAlpha,
+                anchor = anchor,
+                subIcon = subIcon,
+                subIconWidth = subIconWidthValue,
+                subIconHeight = subIconHeightValue,
+                subIconAlpha = subIconAlpha,
+                subAnchor = subAnchor,
+                circleRadius = circleRadiusValue,
+                circleColor = circleColor,
+                circleOutlineWidth = circleOutlineWidthValue,
+                circleOutlineColor = circleOutlineColor,
+                style = style,
+                onClick = { onClickState.value() },
+            )
+        },
+        dispose = ::disposePlatformLocationOverlay,
+    )
+}
+
+@Composable
 private fun <T> rememberOverlay(
+    updateKey: Any?,
     create: (PlatformMapHandle) -> T,
     update: (PlatformMapHandle, T) -> Unit,
     dispose: (T) -> Unit,
@@ -279,14 +627,29 @@ private fun <T> rememberOverlay(
     val handle = LocalPlatformMapHandle.current ?: return
     val overlay = remember(handle) { create(handle) }
 
-    SideEffect {
+    DisposableEffect(handle, overlay, updateKey) {
         update(handle, overlay)
+        onDispose { }
     }
 
     DisposableEffect(handle, overlay) {
         onDispose {
             dispose(overlay)
         }
+    }
+}
+
+private fun requireAutoOrNonNegative(size: Dp, label: String) {
+    if (size != Dp.Unspecified) {
+        require(size.value >= 0f) { "$label 값은 0 이상이거나 자동이어야 합니다." }
+    }
+}
+
+private fun Dp.toAutoSizePxOrNull(density: androidx.compose.ui.unit.Density): Float? {
+    return if (this == Dp.Unspecified) {
+        null
+    } else {
+        with(density) { toPx() }
     }
 }
 
@@ -377,3 +740,101 @@ internal expect fun updatePlatformGroundOverlay(
 )
 
 internal expect fun disposePlatformGroundOverlay(overlay: PlatformGroundOverlay)
+
+internal expect class PlatformPathOverlay
+
+internal expect fun createPlatformPathOverlay(handle: PlatformMapHandle): PlatformPathOverlay
+
+internal expect fun updatePlatformPathOverlay(
+    handle: PlatformMapHandle,
+    overlay: PlatformPathOverlay,
+    coordinates: List<LatLng>,
+    progress: Double,
+    width: Float,
+    outlineWidth: Float,
+    color: Color,
+    outlineColor: Color,
+    passedColor: Color,
+    passedOutlineColor: Color,
+    patternImage: OverlayImage?,
+    patternInterval: Float,
+    isHideCollidedSymbols: Boolean,
+    isHideCollidedMarkers: Boolean,
+    isHideCollidedCaptions: Boolean,
+    style: OverlayStyle,
+    onClick: () -> Boolean,
+)
+
+internal expect fun disposePlatformPathOverlay(overlay: PlatformPathOverlay)
+
+internal expect class PlatformMultipartPathOverlay
+
+internal expect fun createPlatformMultipartPathOverlay(handle: PlatformMapHandle): PlatformMultipartPathOverlay
+
+internal expect fun updatePlatformMultipartPathOverlay(
+    handle: PlatformMapHandle,
+    overlay: PlatformMultipartPathOverlay,
+    coordinateParts: List<List<LatLng>>,
+    colorParts: List<ColorPart>,
+    progress: Double,
+    width: Float,
+    outlineWidth: Float,
+    patternImage: OverlayImage?,
+    patternInterval: Float,
+    isHideCollidedSymbols: Boolean,
+    isHideCollidedMarkers: Boolean,
+    isHideCollidedCaptions: Boolean,
+    style: OverlayStyle,
+    onClick: () -> Boolean,
+)
+
+internal expect fun disposePlatformMultipartPathOverlay(overlay: PlatformMultipartPathOverlay)
+
+internal expect class PlatformArrowheadPathOverlay
+
+internal expect fun createPlatformArrowheadPathOverlay(handle: PlatformMapHandle): PlatformArrowheadPathOverlay
+
+internal expect fun updatePlatformArrowheadPathOverlay(
+    handle: PlatformMapHandle,
+    overlay: PlatformArrowheadPathOverlay,
+    coordinates: List<LatLng>,
+    width: Float,
+    headSizeRatio: Float,
+    color: Color,
+    outlineWidth: Float,
+    outlineColor: Color,
+    elevation: Float,
+    style: OverlayStyle,
+    onClick: () -> Boolean,
+)
+
+internal expect fun disposePlatformArrowheadPathOverlay(overlay: PlatformArrowheadPathOverlay)
+
+internal expect class PlatformLocationOverlay
+
+internal expect fun createPlatformLocationOverlay(handle: PlatformMapHandle): PlatformLocationOverlay
+
+internal expect fun updatePlatformLocationOverlay(
+    handle: PlatformMapHandle,
+    overlay: PlatformLocationOverlay,
+    position: LatLng,
+    bearing: Float,
+    icon: OverlayImage,
+    iconWidth: Float?,
+    iconHeight: Float?,
+    iconAlpha: Float,
+    anchor: AnchorPoint,
+    subIcon: OverlayImage?,
+    subIconWidth: Float?,
+    subIconHeight: Float?,
+    subIconAlpha: Float,
+    subAnchor: AnchorPoint,
+    circleRadius: Float,
+    circleColor: Color,
+    circleOutlineWidth: Float,
+    circleOutlineColor: Color,
+    style: OverlayStyle,
+    onClick: () -> Boolean,
+)
+
+internal expect fun disposePlatformLocationOverlay(overlay: PlatformLocationOverlay)
