@@ -1,15 +1,26 @@
 PODS:
-  - composeApp (0.1.0-SNAPSHOT)
+  - composeApp (0.1.0-SNAPSHOT):
+    - NMapsMap
+  - NMapsGeometry (1.0.2)
+  - NMapsMap (3.23.2):
+    - NMapsGeometry
 
 DEPENDENCIES:
   - composeApp (from `../composeApp`)
+
+SPEC REPOS:
+  trunk:
+    - NMapsGeometry
+    - NMapsMap
 
 EXTERNAL SOURCES:
   composeApp:
     :path: "../composeApp"
 
 SPEC CHECKSUMS:
-  composeApp: 6933feccce7c5d4f2c27cb7947a33675e34ab6e5
+  composeApp: 53dfa6072965ff27bca4205f8f006d603d468e75
+  NMapsGeometry: 4e02554fa9880ef02ed96b075dc84355d6352479
+  NMapsMap: 617b1cec04331deb72fb7553f791bfe7d6b27bb2
 
 PODFILE CHECKSUM: 8681093b4a44d11ba40e359c669a2956e55bd9b4
 

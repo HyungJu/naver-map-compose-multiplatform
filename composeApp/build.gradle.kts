@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -10,6 +11,17 @@ plugins {
 
 group = "io.github.jude.navermap"
 version = "0.1.0-SNAPSHOT"
+
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use(::load)
+    }
+}
+
+val naverMapClientId = providers
+    .gradleProperty("naver.map.client.id")
+    .orElse(localProperties.getProperty("naver.map.client.id", ""))
 
 kotlin {
     androidTarget {
@@ -28,6 +40,7 @@ kotlin {
         version = project.version.toString()
         ios.deploymentTarget = "16.0"
         podfile = project.file("../iosApp/Podfile")
+        pod("NMapsMap")
 
         framework {
             baseName = "ComposeApp"
@@ -60,6 +73,7 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = project.version.toString()
+        manifestPlaceholders["NAVER_MAP_CLIENT_ID"] = naverMapClientId.get()
     }
 
     buildTypes {

@@ -25,6 +25,7 @@ dependencyResolutionManagement {
                 includeGroupAndSubgroups("com.google")
             }
         }
+        maven("https://repository.map.naver.com/archive/maven")
         mavenCentral()
     }
 }

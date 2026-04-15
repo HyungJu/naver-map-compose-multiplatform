@@ -1,52 +1,67 @@
 package io.github.jude.navermap.compose
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
+
+data class LatLng(
+    val latitude: Double,
+    val longitude: Double,
+)
+
+data class CameraPosition(
+    val target: LatLng = LatLng(37.5666102, 126.9783881),
+    val zoom: Double = 14.0,
+)
+
+@Stable
+class NaverMapCameraState(
+    initialPosition: CameraPosition = CameraPosition(),
+) {
+    var position by mutableStateOf(initialPosition)
+}
 
 @Composable
-fun NaverMapPlaceholder(
-    modifier: Modifier = Modifier,
-    title: String = "Naver Map Compose Multiplatform",
-    subtitle: String = "Phase 1 scaffold is ready for native map integration.",
-) {
-    Box(
-        modifier = modifier
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color(0xFFE8FFF2),
-                        Color(0xFFD7F2FF),
-                    ),
-                ),
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineSmall,
-                color = Color(0xFF0E5D3B),
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color(0xFF214D63),
-            )
-        }
-    }
+fun rememberNaverMapCameraState(
+    initialPosition: CameraPosition = CameraPosition(),
+): NaverMapCameraState = remember {
+    NaverMapCameraState(initialPosition)
 }
+
+data class MapProperties(
+    val isIndoorEnabled: Boolean = false,
+)
+
+data class MapUiSettings(
+    val isCompassEnabled: Boolean = true,
+    val isScaleBarEnabled: Boolean = false,
+    val isZoomControlEnabled: Boolean = true,
+    val isLocationButtonEnabled: Boolean = false,
+)
+
+@Composable
+fun NaverMap(
+    modifier: Modifier = Modifier,
+    cameraState: NaverMapCameraState = rememberNaverMapCameraState(),
+    properties: MapProperties = MapProperties(),
+    uiSettings: MapUiSettings = MapUiSettings(),
+) {
+    PlatformNaverMap(
+        modifier = modifier,
+        cameraState = cameraState,
+        properties = properties,
+        uiSettings = uiSettings,
+    )
+}
+
+@Composable
+internal expect fun PlatformNaverMap(
+    modifier: Modifier = Modifier,
+    cameraState: NaverMapCameraState,
+    properties: MapProperties,
+    uiSettings: MapUiSettings,
+)

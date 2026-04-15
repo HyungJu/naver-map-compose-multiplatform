@@ -12,6 +12,20 @@ The first milestone should optimize for:
 - publishable library structure
 - minimal but real map functionality
 
+## Current Status
+
+As of 2026-04-15, the scaffold itself is implemented:
+
+- the repository builds as a Kotlin Multiplatform project
+- the shared sample screen uses a public `NaverMap` composable instead of platform SDK calls directly
+- the Android sample is wired to the NAVER Android SDK and reads the client ID from `local.properties`
+- the iOS sample is wired to the NAVER iOS SDK through CocoaPods and reads the client ID from the `NAVER_MAP_CLIENT_ID` build setting via `Info.plist`
+- the library publishes to Maven Local with `./gradlew :naver-map-compose:publishToMavenLocal`
+
+The remaining environment-dependent step is supplying valid NAVER client IDs locally so live map tiles can be visually confirmed on both platforms.
+
+This means the scaffold is code-complete, but real map visibility is still dependent on local secrets that are intentionally not committed.
+
 ## Research Summary
 
 ### Compose Multiplatform and project structure

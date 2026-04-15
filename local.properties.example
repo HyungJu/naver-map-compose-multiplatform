@@ -1,2 +1,3 @@
 # Copy this file to local.properties if your Android SDK is not auto-detected.
 sdk.dir=/Users/your-user/Library/Android/sdk
+naver.map.client.id=YOUR_NCP_KEY_ID_HERE
