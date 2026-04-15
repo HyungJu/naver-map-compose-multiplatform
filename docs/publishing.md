@@ -29,6 +29,18 @@ export MAVEN_CENTRAL_GPG_PASSPHRASE=...
 export MAVEN_CENTRAL_GPG_KEY_ID=...
 ```
 
+`MAVEN_CENTRAL_GPG_PRIVATE_KEY` can be either:
+
+- the full ASCII-armored private key block from `gpg --armor --export-secret-keys ...`
+- or a base64-encoded copy of that ASCII-armored private key block
+
+If signing fails with `Could not read PGP secret key`, the most common causes are:
+
+- the secret contains only part of the key
+- the secret contains a public key instead of a private key
+- the passphrase does not match the private key
+- `MAVEN_CENTRAL_GPG_KEY_ID` is wrong and should be corrected or omitted
+
 ## Local Release Commands
 
 ### 1. Validate artifacts locally

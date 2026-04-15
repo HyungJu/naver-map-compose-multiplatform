@@ -1,6 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.jvm.tasks.Jar
+import org.gradle.api.GradleException
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -20,6 +21,27 @@ plugins {
 
 fun Project.gradlePropertyOrEnv(propertyName: String, envName: String) =
     providers.gradleProperty(propertyName).orElse(providers.environmentVariable(envName))
+
+fun normalizeSigningKey(rawKey: String): String {
+    val normalized = rawKey.replace("\r\n", "\n").trim()
+    if (normalized.contains("BEGIN PGP PRIVATE KEY BLOCK")) {
+        return normalized
+    }
+
+    val decoded = runCatching {
+        String(Base64.getDecoder().decode(normalized), StandardCharsets.UTF_8)
+    }.getOrNull()
+
+    val decodedNormalized = decoded
+        ?.replace("\r\n", "\n")
+        ?.trim()
+
+    return if (decodedNormalized?.contains("BEGIN PGP PRIVATE KEY BLOCK") == true) {
+        decodedNormalized
+    } else {
+        normalized
+    }
+}
 
 val isSnapshotVersion = version.toString().endsWith("-SNAPSHOT")
 val mavenCentralUsername = gradlePropertyOrEnv("mavenCentralUsername", "MAVEN_CENTRAL_USERNAME")
@@ -155,7 +177,23 @@ signing {
     val key = signingKey.orNull
     val password = signingPassword.orNull
     if (key != null && password != null) {
-        useInMemoryPgpKeys(signingKeyId.orNull, key, password)
+        val normalizedKey = normalizeSigningKey(key)
+        runCatching {
+            useInMemoryPgpKeys(signingKeyId.orNull, normalizedKey, password)
+        }.getOrElse { error ->
+            throw GradleException(
+                """
+                Failed to read the in-memory PGP secret key.
+                Expected MAVEN_CENTRAL_GPG_PRIVATE_KEY or signingInMemoryKey to contain either:
+                - the full ASCII-armored private key block, or
+                - a base64-encoded copy of that ASCII-armored private key block.
+                
+                Also verify that MAVEN_CENTRAL_GPG_PASSPHRASE matches the private key and that
+                MAVEN_CENTRAL_GPG_KEY_ID is either correct or omitted.
+                """.trimIndent(),
+                error,
+            )
+        }
     }
 
     sign(publishing.publications)
