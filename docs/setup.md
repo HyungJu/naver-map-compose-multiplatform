@@ -28,4 +28,7 @@ The sample app forwards that value into `Info.plist` as `NMFNcpKeyId`, which is 
 
 - Android sample: `./gradlew :composeApp:assembleDebug`
 - Shared library publication: `./gradlew :naver-map-compose:publishToMavenLocal`
+- Maven Central release flow: `./gradlew :naver-map-compose:publishToMavenCentral`
 - iOS sample: run `pod install` in `iosApp/` and open the workspace
+
+배포용 버전, Sonatype 자격 증명, 자동화는 `docs/publishing.md`를 참고하세요.

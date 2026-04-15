@@ -25,3 +25,10 @@ These instructions apply to the entire workspace at `/Users/jude/Code/naver-map-
 
 - At the end of every completed task in this repository, create a git commit before considering the work finished.
 - Do not leave completed work uncommitted unless the user explicitly asks not to commit yet.
+
+## Release And Versioning
+
+- Treat `gradle.properties` as the single source of truth for the shared project version via `VERSION_NAME`, unless a release task explicitly overrides it with `-PVERSION_NAME=...`.
+- For Maven Central publishing work, keep the POM metadata and Sonatype endpoint properties in `gradle.properties` aligned with the current repository ownership and namespace.
+- Use `./gradlew :naver-map-compose:publishToMavenCentral` for Maven Central uploads. This wrapper is expected to publish artifacts, then finalize non-`-SNAPSHOT` releases against the Sonatype Central staging API.
+- When updating release automation, keep `docs/publishing.md` and `.github/workflows/publish-maven-central.yml` in sync so the manual and CI flows match.

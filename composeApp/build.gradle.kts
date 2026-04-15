@@ -9,9 +9,6 @@ plugins {
     alias(libs.plugins.androidApplication)
 }
 
-group = "io.github.jude.navermap"
-version = "0.1.0-SNAPSHOT"
-
 val localProperties = Properties().apply {
     val file = rootProject.file("local.properties")
     if (file.exists()) {

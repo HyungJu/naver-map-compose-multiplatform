@@ -60,6 +60,8 @@ dependencies {
 }
 ```
 
+릴리스 버전은 루트 [`gradle.properties`](./gradle.properties)의 `VERSION_NAME`으로 관리합니다. Maven Central 배포 절차와 자동화 설정은 [`docs/publishing.md`](./docs/publishing.md)에 정리했습니다.
+
 ## Warnings
 
 이 라이브러리는 내부적으로 NAVER Maps SDK를 사용합니다. 사용 전에 다음 내용을 확인해주세요.
