@@ -1,0 +1,2 @@
+# Copy this file to local.properties if your Android SDK is not auto-detected.
+sdk.dir=/Users/your-user/Library/Android/sdk

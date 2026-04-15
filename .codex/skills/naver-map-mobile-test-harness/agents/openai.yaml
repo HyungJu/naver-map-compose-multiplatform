@@ -1,0 +1,13 @@
+interface:
+  display_name: "Naver Map Mobile Tester"
+  short_description: "Scenario-based mobile test harness that boots devices for this repo"
+  default_prompt: "Use $naver-map-mobile-test-harness to boot the requested Android/iOS devices and run a scenario-driven mobile app test for this repository through a dedicated tester subagent."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "mobile-mcp"
+      description: "Required for mobile device interaction, screenshots, and UI evidence."
+
+policy:
+  allow_implicit_invocation: true
