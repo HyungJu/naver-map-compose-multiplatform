@@ -46,7 +46,7 @@ internal actual fun rememberPlatformMarkerComposableImage(
         mutableStateOf(transparentMarkerPlaceholder)
     }
 
-    LaunchedEffect(parent, compositionContext, currentContent, *keys) {
+    LaunchedEffect(parent, compositionContext, *keys) {
         while (!parent.isAttachedToWindow) {
             withFrameNanos { }
         }

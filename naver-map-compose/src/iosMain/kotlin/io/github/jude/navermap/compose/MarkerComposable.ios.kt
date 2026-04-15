@@ -66,6 +66,8 @@ private val transparentMarkerPlaceholder: PlatformMarkerComposableImage by lazy 
             image,
             reuseIdentifier = "marker-composable-placeholder",
         ),
+        widthPoints = 1.0,
+        heightPoints = 1.0,
         isReady = false,
     )
 }
@@ -77,6 +79,8 @@ private object MarkerComposableImageIds {
 
 internal actual class PlatformMarkerComposableImage(
     val nativeImage: NMFOverlayImage,
+    val widthPoints: Double,
+    val heightPoints: Double,
     actual val isReady: Boolean,
 )
 
@@ -98,7 +102,6 @@ internal actual fun rememberPlatformMarkerComposableImage(
         density.density,
         density.fontScale,
         layoutDirection,
-        currentContent,
         *keys,
     ) {
         repeat(2) {
@@ -118,11 +121,14 @@ internal actual fun rememberPlatformMarkerComposableImage(
 
 private fun createPlatformMarkerComposableImage(image: UIImage): PlatformMarkerComposableImage {
     val imageId = ++MarkerComposableImageIds.value
+    val imageSize = image.size.useContents { this }
     return PlatformMarkerComposableImage(
         nativeImage = NMFOverlayImage.overlayImageWithImage(
             image,
             reuseIdentifier = "marker-composable-$imageId",
         ),
+        widthPoints = imageSize.width,
+        heightPoints = imageSize.height,
         isReady = true,
     )
 }
@@ -140,9 +146,8 @@ internal actual fun updatePlatformMarkerComposableOverlay(
     overlay.nativeOverlay.apply {
         this.position = position.toMarkerNativeLatLng()
         iconImage = icon.nativeImage
-        width = icon.nativeImage.imageWidth / icon.nativeImage.imageScale
-        height = icon.nativeImage.imageHeight / icon.nativeImage.imageScale
-        icon.nativeImage.invalidate()
+        width = icon.widthPoints
+        height = icon.heightPoints
         this.captionText = captionText
         this.alpha = alpha.toDouble()
         applyMarkerCommonStyle(handle, style, onClick)
@@ -189,12 +194,11 @@ private suspend fun renderMarkerComposableToImage(
         val capturedBitmap = snapshotViewController.view
             .captureToImageBitmap()
             .cropTransparentBounds()
-
         require(capturedBitmap.width > 0 && capturedBitmap.height > 0) {
             "MarkerComposable 콘텐츠의 너비와 높이는 0보다 커야 합니다."
         }
-
-        createPlatformMarkerComposableImage(capturedBitmap.toUIImage())
+        val uiImage = capturedBitmap.toUIImage()
+        createPlatformMarkerComposableImage(uiImage)
     } finally {
         snapshotViewController.view.removeFromSuperview()
         snapshotViewController.removeFromParentViewController()
@@ -265,7 +269,7 @@ private fun ImageBitmap.toUIImage(): UIImage {
         val nsData = bytes.usePinned { pinned ->
             NSData.create(bytes = pinned.addressOf(0), length = bytes.size.toULong())
         }
-        UIImage.imageWithData(nsData)
+        UIImage.imageWithData(nsData, UIScreen.mainScreen.scale)
             ?: throw IllegalStateException("MarkerComposable UIImage를 생성하지 못했습니다.")
     }
 }
