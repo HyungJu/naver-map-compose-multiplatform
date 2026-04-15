@@ -2,7 +2,7 @@
 
 ![NAVER Map Compose Multiplatform banner](docs/images/readme-banner.png)
 
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.jude.navermap/naver-map-compose.svg?label=Maven%20Central)](https://search.maven.org/artifact/io.github.jude.navermap/naver-map-compose)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.hyungju.navermap/naver-map-compose.svg?label=Maven%20Central)](https://search.maven.org/artifact/io.github.hyungju.navermap/naver-map-compose)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.3.20-7F52FF.svg?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Compose Multiplatform](https://img.shields.io/badge/Compose%20Multiplatform-1.10.3-4285F4.svg)](https://www.jetbrains.com/compose-multiplatform/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
@@ -50,7 +50,7 @@ open iosApp.xcworkspace
 
 ### `naver-map-compose`
 
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.jude.navermap/naver-map-compose.svg?label=naver-map-compose)](https://search.maven.org/artifact/io.github.jude.navermap/naver-map-compose)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.hyungju.navermap/naver-map-compose.svg?label=naver-map-compose)](https://search.maven.org/artifact/io.github.hyungju.navermap/naver-map-compose)
 
 ```kotlin
 repositories {
@@ -60,7 +60,7 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.jude.navermap:naver-map-compose:0.1.0")
+    implementation("io.github.hyungju.navermap:naver-map-compose:0.1.0")
 }
 ```
 

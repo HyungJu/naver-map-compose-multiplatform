@@ -1,4 +1,4 @@
-package io.github.jude.navermap.compose
+package io.github.hyungju.navermap.compose
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect

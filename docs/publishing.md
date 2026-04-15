@@ -12,7 +12,7 @@
 
 Before the first upload, prepare these once:
 
-1. Verify the `io.github.jude.navermap` namespace in the Sonatype Central Portal.
+1. Verify the `io.github.hyungju.navermap` namespace in the Sonatype Central Portal.
 2. Generate a Portal token in Sonatype Central.
 3. Prepare a GPG key pair for signing.
 

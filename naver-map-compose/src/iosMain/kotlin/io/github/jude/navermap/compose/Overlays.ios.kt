@@ -1,6 +1,6 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
-package io.github.jude.navermap.compose
+package io.github.hyungju.navermap.compose
 
 import androidx.compose.ui.graphics.Color
 import cocoapods.NMapsMap.NMFArrowheadPath

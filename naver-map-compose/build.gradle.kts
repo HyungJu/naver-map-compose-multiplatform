@@ -51,7 +51,7 @@ kotlin {
 
     cocoapods {
         summary = "Compose Multiplatform wrapper for NAVER Map on Android and iOS"
-        homepage = "https://github.com/jude/naver-map-compose-multiplatform"
+        homepage = "https://github.com/HyungJu/naver-map-compose-multiplatform"
         version = project.version.toString()
         ios.deploymentTarget = "16.0"
 
@@ -78,7 +78,7 @@ kotlin {
 }
 
 android {
-    namespace = "io.github.jude.navermap.compose"
+    namespace = "io.github.hyungju.navermap.compose"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {

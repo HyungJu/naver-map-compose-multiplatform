@@ -1,7 +1,7 @@
 Pod::Spec.new do |spec|
     spec.name                     = 'composeApp'
     spec.version                  = '0.1.0-SNAPSHOT'
-    spec.homepage                 = 'https://github.com/jude/naver-map-compose-multiplatform'
+    spec.homepage                 = 'https://github.com/HyungJu/naver-map-compose-multiplatform'
     spec.source                   = { :http=> ''}
     spec.authors                  = ''
     spec.license                  = ''

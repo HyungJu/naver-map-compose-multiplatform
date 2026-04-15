@@ -33,7 +33,7 @@ kotlin {
 
     cocoapods {
         summary = "Compose Multiplatform sample app for naver-map-compose"
-        homepage = "https://github.com/jude/naver-map-compose-multiplatform"
+        homepage = "https://github.com/HyungJu/naver-map-compose-multiplatform"
         version = project.version.toString()
         ios.deploymentTarget = "16.0"
         podfile = project.file("../iosApp/Podfile")
@@ -61,11 +61,11 @@ kotlin {
 }
 
 android {
-    namespace = "io.github.jude.navermap.sample"
+    namespace = "io.github.hyungju.navermap.sample"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "io.github.jude.navermap.sample"
+        applicationId = "io.github.hyungju.navermap.sample"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
