@@ -16,7 +16,11 @@ The Android sample injects this value into the `com.naver.maps.map.CLIENT_ID` ma
 
 ### iOS
 
-Set the `NAVER_MAP_CLIENT_ID` build setting in Xcode for the `iosApp` target.
+Copy `iosApp/Config/LocalSecrets.example.xcconfig` to `iosApp/Config/LocalSecrets.xcconfig` and set:
+
+```xcconfig
+NAVER_MAP_CLIENT_ID = YOUR_NCP_KEY_ID_HERE
+```
 
 The sample app forwards that value into `Info.plist` as `NMFNcpKeyId`, which is the key the NAVER iOS SDK reads during startup.
 

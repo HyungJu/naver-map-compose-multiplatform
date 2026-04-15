@@ -12,6 +12,7 @@ DerivedData/
 xcuserdata
 *.xcuserstate
 *.xcscmblueprint
+iosApp/Config/LocalSecrets.xcconfig
 Pods/
 **/.swiftpm/
 *.xcodeproj/*
