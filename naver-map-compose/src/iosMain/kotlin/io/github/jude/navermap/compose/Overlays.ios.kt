@@ -28,8 +28,11 @@ import cocoapods.NMapsMap.NMGLatLng
 import cocoapods.NMapsMap.NMGLatLngBounds
 import cocoapods.NMapsMap.NMGLineString
 import cocoapods.NMapsMap.NMGPolygon
+import kotlinx.cinterop.useContents
 import platform.CoreGraphics.CGPointMake
 import platform.UIKit.UIColor
+import platform.UIKit.UIScreen
+import kotlin.math.roundToInt
 
 internal actual class PlatformMarkerOverlay(
     val nativeOverlay: NMFMarker,
@@ -51,7 +54,10 @@ internal actual fun updatePlatformMarkerOverlay(
 ) {
     overlay.nativeOverlay.apply {
         this.position = position.toNativeLatLng()
-        iconImage = icon.toNativeOverlayImage()
+        val nativeImage = icon.toNativeOverlayImage()
+        iconImage = nativeImage
+        width = nativeImage.autoPointWidth()
+        height = nativeImage.autoPointHeight()
         this.captionText = captionText
         this.alpha = alpha.toDouble()
         applyCommonStyle(handle, style, onClick)
@@ -86,7 +92,7 @@ internal actual fun updatePlatformCircleOverlay(
         this.center = center.toNativeLatLng()
         radius = radiusMeters
         this.fillColor = fillColor.toUIColor()
-        this.outlineWidth = outlineWidth.toDouble()
+        this.outlineWidth = outlineWidth.toUiPoints()
         this.outlineColor = outlineColor.toUIColor()
         applyCommonStyle(handle, style, onClick)
     }
@@ -120,7 +126,7 @@ internal actual fun updatePlatformPolygonOverlay(
     overlay.nativeOverlay.apply {
         polygon = NMGPolygon.polygonWithRing(exteriorRing)
         this.fillColor = fillColor.toUIColor()
-        this.outlineWidth = outlineWidth.toULong()
+        this.outlineWidth = outlineWidth.toUiPointInt().toULong()
         this.outlineColor = outlineColor.toUIColor()
         this.outlinePattern = outlinePattern.map(Int::toLong)
         applyCommonStyle(handle, style, onClick)
@@ -154,7 +160,7 @@ internal actual fun updatePlatformPolylineOverlay(
 ) {
     overlay.nativeOverlay.apply {
         line = NMGLineString.lineStringWithPoints(coordinates.map(LatLng::toNativeLatLng))
-        this.width = width.toDouble()
+        this.width = width.toUiPoints()
         this.color = color.toUIColor()
         this.pattern = pattern.map(Int::toLong)
         applyCommonStyle(handle, style, onClick)
@@ -226,14 +232,14 @@ internal actual fun updatePlatformPathOverlay(
     overlay.nativeOverlay.apply {
         path = NMGLineString.lineStringWithPoints(coordinates.map(LatLng::toNativeLatLng))
         this.progress = progress
-        this.width = width.toDouble()
-        this.outlineWidth = outlineWidth.toDouble()
+        this.width = width.toUiPoints()
+        this.outlineWidth = outlineWidth.toUiPoints()
         this.color = color.toUIColor()
         this.outlineColor = outlineColor.toUIColor()
         this.passedColor = passedColor.toUIColor()
         this.passedOutlineColor = passedOutlineColor.toUIColor()
         patternIcon = patternImage?.toNativeOverlayImage()
-        this.patternInterval = patternInterval.toULong()
+        this.patternInterval = patternInterval.toUiPointInt().toULong()
         this.isHideCollidedSymbols = isHideCollidedSymbols
         this.isHideCollidedMarkers = isHideCollidedMarkers
         this.isHideCollidedCaptions = isHideCollidedCaptions
@@ -276,10 +282,10 @@ internal actual fun updatePlatformMultipartPathOverlay(
         }
         this.colorParts = colorParts.map(ColorPart::toNativePathColor)
         this.progress = progress
-        this.width = width.toDouble()
-        this.outlineWidth = outlineWidth.toDouble()
+        this.width = width.toUiPoints()
+        this.outlineWidth = outlineWidth.toUiPoints()
         patternIcon = patternImage?.toNativeOverlayImage()
-        this.patternInterval = patternInterval.toULong()
+        this.patternInterval = patternInterval.toUiPointInt().toULong()
         this.isHideCollidedSymbols = isHideCollidedSymbols
         this.isHideCollidedMarkers = isHideCollidedMarkers
         this.isHideCollidedCaptions = isHideCollidedCaptions
@@ -315,12 +321,12 @@ internal actual fun updatePlatformArrowheadPathOverlay(
 ) {
     overlay.nativeOverlay.apply {
         points = coordinates.map(LatLng::toNativeLatLng)
-        this.width = width.toDouble()
+        this.width = width.toUiPoints()
         this.headSizeRatio = headSizeRatio.toDouble()
         this.color = color.toUIColor()
-        this.outlineWidth = outlineWidth.toDouble()
+        this.outlineWidth = outlineWidth.toUiPoints()
         this.outlineColor = outlineColor.toUIColor()
-        this.elevation = elevation.toDouble()
+        this.elevation = elevation.toUiPoints()
         applyCommonStyle(handle, style, onClick)
     }
 }
@@ -363,19 +369,21 @@ internal actual fun updatePlatformLocationOverlay(
     overlay.nativeOverlay.apply {
         location = position.toNativeLatLng()
         heading = bearing.toDouble()
-        this.icon = icon.toNativeOverlayImage()
-        this.iconWidth = iconWidth?.toDouble() ?: 0.0
-        this.iconHeight = iconHeight?.toDouble() ?: 0.0
+        val nativeIcon = icon.toNativeOverlayImage()
+        this.icon = nativeIcon
+        this.iconWidth = iconWidth?.toUiPoints() ?: nativeIcon.autoPointWidth()
+        this.iconHeight = iconHeight?.toUiPoints() ?: nativeIcon.autoPointHeight()
         this.iconAlpha = iconAlpha.toDouble()
         this.anchor = anchor.toNativeAnchor()
-        this.subIcon = subIcon?.toNativeOverlayImage()
-        this.subIconWidth = subIconWidth?.toDouble() ?: 0.0
-        this.subIconHeight = subIconHeight?.toDouble() ?: 0.0
+        val nativeSubIcon = subIcon?.toNativeOverlayImage()
+        this.subIcon = nativeSubIcon
+        this.subIconWidth = subIconWidth?.toUiPoints() ?: nativeSubIcon?.autoPointWidth() ?: 0.0
+        this.subIconHeight = subIconHeight?.toUiPoints() ?: nativeSubIcon?.autoPointHeight() ?: 0.0
         this.subIconAlpha = subIconAlpha.toDouble()
         this.subAnchor = subAnchor.toNativeAnchor()
-        this.circleRadius = circleRadius.toDouble()
+        this.circleRadius = circleRadius.toUiPoints()
         this.circleColor = circleColor.toUIColor()
-        this.circleOutlineWidth = circleOutlineWidth.toDouble()
+        this.circleOutlineWidth = circleOutlineWidth.toUiPoints()
         this.circleOutlineColor = circleOutlineColor.toUIColor()
         applyCommonStyle(handle, style, onClick, attachToMap = false)
         hidden = !style.visible
@@ -420,6 +428,10 @@ private fun LatLngBounds.toNativeBounds(): NMGLatLngBounds {
 
 private fun AnchorPoint.toNativeAnchor() = CGPointMake(x.toDouble(), y.toDouble())
 
+private fun Float.toUiPoints(): Double = (this / UIScreen.mainScreen.scale.toFloat()).toDouble()
+
+private fun Float.toUiPointInt(): Int = (this / UIScreen.mainScreen.scale.toFloat()).roundToInt()
+
 private fun OverlayImage.toNativeOverlayImage(): NMFOverlayImage {
     return when (this) {
         OverlayImage.DefaultMarker -> NMF_MARKER_IMAGE_DEFAULT
@@ -434,6 +446,10 @@ private fun OverlayImage.toNativeOverlayImage(): NMFOverlayImage {
         OverlayImage.LocationDefault -> NMFLocationOverlay.defaultIconImage()
     }
 }
+
+private fun NMFOverlayImage.autoPointWidth(): Double = image.size.useContents { width }
+
+private fun NMFOverlayImage.autoPointHeight(): Double = image.size.useContents { height }
 
 private fun ColorPart.toNativePathColor(): NMFPathColor {
     return NMFPathColor.pathColorWithColor(
