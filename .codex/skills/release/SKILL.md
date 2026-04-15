@@ -22,7 +22,7 @@ Use this skill for release tasks in `/Users/jude/Code/naver-map-compose-multipla
 
 - Creates a release commit with a non-snapshot `VERSION_NAME`
 - Creates and pushes an annotated `vX.Y.Z` tag
-- Creates or updates the GitHub Release with `gh`
+- Creates or updates the GitHub Release with `gh`, including a generated description
 - Bumps `VERSION_NAME` to the next snapshot and pushes `main`
 
 ## Version Recommendation

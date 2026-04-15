@@ -58,7 +58,7 @@ This command:
 - updates `VERSION_NAME` from snapshot to the release version
 - creates a `Release x.y.z` commit
 - creates and pushes `vx.y.z`
-- creates or updates the GitHub Release with `gh`
+- creates or updates the GitHub Release with `gh`, including a generated description with install coordinates and commit summary
 - bumps `VERSION_NAME` to the next snapshot
 - pushes `main`
 

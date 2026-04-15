@@ -84,6 +84,55 @@ ensure_tag_absent() {
   fi
 }
 
+previous_release_tag() {
+  git -C "$ROOT_DIR" tag --list 'v*' --sort=-version:refname | grep -Fvx "$TAG" | head -n 1 || true
+}
+
+build_release_notes() {
+  local notes_file="$1"
+  local previous_tag
+  local changes_range
+  local changelog
+  local repo_slug
+
+  previous_tag="$(previous_release_tag)"
+  repo_slug="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
+  if [[ -n "$previous_tag" ]]; then
+    changes_range="$previous_tag..HEAD"
+  else
+    changes_range="HEAD"
+  fi
+
+  changelog="$(
+    git -C "$ROOT_DIR" log --reverse --pretty='- %s (%h)' "$changes_range" \
+      | grep -Ev '^- (Release |Prepare for )' || true
+  )"
+  if [[ -z "$changelog" ]]; then
+    changelog="- No user-facing changes were detected for this release."
+  fi
+
+  cat >"$notes_file" <<EOF
+## Maven Central
+
+\`\`\`kotlin
+implementation("io.github.hyungju.navermap:naver-map-compose:$RELEASE_VERSION")
+\`\`\`
+
+## Changes
+
+$changelog
+EOF
+
+  if [[ -n "$previous_tag" ]]; then
+    cat >>"$notes_file" <<EOF
+
+## Full Changelog
+
+https://github.com/$repo_slug/compare/$previous_tag...$TAG
+EOF
+  fi
+}
+
 write_version_name() {
   local target_version="$1"
   python3 - "$GRADLE_PROPERTIES" "$target_version" <<'PY'
@@ -128,10 +177,14 @@ commit_version_change "$RELEASE_VERSION" "Release $RELEASE_VERSION"
 git -C "$ROOT_DIR" tag -a "$TAG" -m "Release $TAG"
 git -C "$ROOT_DIR" push "$REMOTE" "$TAG"
 
+RELEASE_NOTES_FILE="$(mktemp)"
+trap 'rm -f "$RELEASE_NOTES_FILE"' EXIT
+build_release_notes "$RELEASE_NOTES_FILE"
+
 if gh release view "$TAG" >/dev/null 2>&1; then
-  gh release edit "$TAG" --title "$TAG" --latest --verify-tag
+  gh release edit "$TAG" --title "$TAG" --notes-file "$RELEASE_NOTES_FILE" --latest --verify-tag
 else
-  gh release create "$TAG" --title "$TAG" --verify-tag --generate-notes --latest
+  gh release create "$TAG" --title "$TAG" --notes-file "$RELEASE_NOTES_FILE" --verify-tag --latest
 fi
 
 commit_version_change "$NEXT_SNAPSHOT_VERSION" "Prepare for $NEXT_SNAPSHOT_VERSION"
