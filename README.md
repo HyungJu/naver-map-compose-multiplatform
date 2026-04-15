@@ -7,7 +7,7 @@
 
 이 라이브러리는 Kotlin Multiplatform과 Compose Multiplatform에서 사용할 수 있는 NAVER Map API를 제공합니다. Android와 iOS에서 공통 Compose API로 지도를 렌더링하고, 카메라 상태와 지도 옵션, 주요 이벤트를 공유하는 것을 목표로 합니다.
 
-이 프로젝트는 [`fornewid/naver-map-compose`](https://github.com/fornewid/naver-map-compose)를 중요한 업스트림 레퍼런스로 삼아 시작했습니다. 다만 Android 전용 API를 그대로 옮기기보다, 멀티플랫폼 환경에 맞는 공통 추상화를 우선하는 방향으로 설계하고 있습니다.
+이 프로젝트는 [`fornewid/naver-map-compose`](https://github.com/fornewid/naver-map-compose)를 레퍼런스로 삼아 시작했습니다. 다만 Android 전용 API를 그대로 옮기기보다, 멀티플랫폼 환경에 맞는 공통 추상화를 우선하는 방향으로 설계하고 있습니다.
 
 ## Sample App
 
@@ -173,25 +173,6 @@ NaverMap(
         lastEvent = "지도 옵션 변경"
     },
 )
-```
-
-### Raw Map 객체 다루기
-
-특정 use case에서는 플랫폼의 raw 지도 객체가 필요할 수 있습니다. 이때 `MapEffect` 또는 `DisposableMapEffect`를 사용해 플랫폼 핸들에 접근할 수 있습니다.
-
-```kotlin
-NaverMap {
-    MapEffect(Unit) { mapHandle ->
-        println("Connected to map handle: $mapHandle")
-    }
-
-    DisposableMapEffect(Unit) { mapHandle ->
-        println("Map handle attached: $mapHandle")
-        onDispose {
-            println("Map handle detached")
-        }
-    }
-}
 ```
 
 ## Supported Features
