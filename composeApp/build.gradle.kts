@@ -73,7 +73,7 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = project.version.toString()
-        manifestPlaceholders["NAVER_MAP_CLIENT_ID"] = naverMapClientId.get()
+        resValue("string", "naver_map_sdk_ncp_key_id", naverMapClientId.get())
     }
 
     buildTypes {
