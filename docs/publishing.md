@@ -37,7 +37,45 @@ export MAVEN_CENTRAL_GPG_KEY_ID=...
 ./gradlew :naver-map-compose:publishToMavenLocal
 ```
 
-### 2. Publish a snapshot
+### 2. Inspect the next release version automatically
+
+```bash
+git tag --sort=version:refname | tail -n 5
+git log --oneline <last-tag>..HEAD
+git diff --stat <last-tag>..HEAD
+```
+
+Codex can inspect those changes and recommend `major`, `minor`, or `patch`. The version choice now lives in the skill and conversation, not in the script.
+
+### 3. Cut a release from your machine
+
+```bash
+./scripts/cut-release.sh 0.1.0
+```
+
+This command:
+
+- updates `VERSION_NAME` from snapshot to the release version
+- creates a `Release x.y.z` commit
+- creates and pushes `vx.y.z`
+- creates or updates the GitHub Release with `gh`
+- bumps `VERSION_NAME` to the next snapshot
+- pushes `main`
+
+If you want to control the next snapshot explicitly:
+
+```bash
+./scripts/cut-release.sh 0.2.0 0.3.0-SNAPSHOT
+```
+
+The command requires:
+
+- a clean worktree
+- running on `main`
+- a configured git remote
+- `gh auth status` to succeed
+
+### 4. Publish a snapshot manually
 
 ```bash
 ./gradlew :naver-map-compose:publishToMavenCentral
@@ -45,7 +83,7 @@ export MAVEN_CENTRAL_GPG_KEY_ID=...
 
 This uses `VERSION_NAME` from `gradle.properties`. If it ends with `-SNAPSHOT`, the library is uploaded to the Sonatype snapshot repository.
 
-### 3. Publish a final release
+### 5. Publish a final release manually
 
 ```bash
 ./gradlew :naver-map-compose:publishToMavenCentral -PVERSION_NAME=0.1.1
@@ -76,8 +114,8 @@ The workflow extracts the release version from the tag, for example `v0.1.1` -> 
 
 ## Release Checklist
 
-1. Update `VERSION_NAME` to the next planned version if you want the repository default to change.
-2. Confirm `README.md` dependency examples still match the latest released artifact.
-3. Run `./gradlew :naver-map-compose:publishToMavenLocal`.
-4. Publish with `./gradlew :naver-map-compose:publishToMavenCentral -PVERSION_NAME=<release>`.
-5. Tag the release or trigger the GitHub Actions workflow.
+1. Confirm `README.md` dependency examples still match the latest released artifact.
+2. Run `./gradlew :naver-map-compose:publishToMavenLocal`.
+3. Let Codex inspect the recent changes and recommend the next release version.
+4. Run `./scripts/cut-release.sh <release-version> [next-snapshot-version]`.
+5. If you need to bypass the helper, use the manual Gradle commands above.
