@@ -1,7 +1,9 @@
 package io.github.jude.navermap.compose
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.listSaver
@@ -76,6 +78,13 @@ class CameraPositionState(
         )
     }
 }
+
+internal val LocalCameraPositionState = staticCompositionLocalOf { CameraPositionState() }
+
+val currentCameraPositionState: CameraPositionState
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalCameraPositionState.current
 
 @Composable
 inline fun rememberCameraPositionState(

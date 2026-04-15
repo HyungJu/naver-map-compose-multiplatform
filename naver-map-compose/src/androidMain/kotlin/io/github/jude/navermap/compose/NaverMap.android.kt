@@ -1,9 +1,12 @@
 package io.github.jude.navermap.compose
 
 import android.content.Context
+import android.graphics.PointF
 import android.os.Bundle
+import android.location.Location
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,8 +29,14 @@ import java.util.Locale
 private class ManagedMapView(context: Context) : MapView(context) {
     var map: NaverMap? = null
     var boundCameraState: CameraPositionState? = null
+    var mapHandle: PlatformMapHandle? = null
     private var cameraChangeListener: NaverMap.OnCameraChangeListener? = null
     private var cameraIdleListener: NaverMap.OnCameraIdleListener? = null
+    private var optionChangeListener: NaverMap.OnOptionChangeListener? = null
+    private var loadListener: NaverMap.OnLoadListener? = null
+    private var indoorSelectionChangeListener: NaverMap.OnIndoorSelectionChangeListener? = null
+    private var locationChangeListener: NaverMap.OnLocationChangeListener? = null
+    private var loadDelivered = false
 
     fun bindCameraState(cameraPositionState: CameraPositionState) {
         val currentMap = map ?: return
@@ -79,6 +88,87 @@ private class ManagedMapView(context: Context) : MapView(context) {
         cameraIdleListener = null
         boundCameraState = null
     }
+
+    fun bindEventCallbacks(
+        onMapClick: (ScreenPoint, LatLng) -> Unit,
+        onMapLongClick: (ScreenPoint, LatLng) -> Unit,
+        onMapDoubleTap: (ScreenPoint, LatLng) -> Boolean,
+        onMapTwoFingerTap: (ScreenPoint, LatLng) -> Boolean,
+        onMapLoaded: () -> Unit,
+        onOptionChange: () -> Unit,
+        onSymbolClick: (MapSymbol) -> Boolean,
+        onIndoorSelectionChange: (IndoorSelectionInfo?) -> Unit,
+        onLocationChange: (MapLocation) -> Unit,
+    ) {
+        val currentMap = map ?: return
+
+        currentMap.setOnMapClickListener { point, latLng ->
+            onMapClick(point.toCommonScreenPoint(), latLng.toCommonLatLng())
+        }
+        currentMap.setOnMapLongClickListener { point, latLng ->
+            onMapLongClick(point.toCommonScreenPoint(), latLng.toCommonLatLng())
+        }
+        currentMap.setOnMapDoubleTapListener { point, latLng ->
+            onMapDoubleTap(point.toCommonScreenPoint(), latLng.toCommonLatLng())
+        }
+        currentMap.setOnMapTwoFingerTapListener { point, latLng ->
+            onMapTwoFingerTap(point.toCommonScreenPoint(), latLng.toCommonLatLng())
+        }
+        currentMap.setOnSymbolClickListener { symbol ->
+            onSymbolClick(
+                MapSymbol(
+                    caption = symbol.caption,
+                    position = symbol.position.toCommonLatLng(),
+                ),
+            )
+        }
+
+        optionChangeListener?.let(currentMap::removeOnOptionChangeListener)
+        optionChangeListener = NaverMap.OnOptionChangeListener {
+            onOptionChange()
+        }.also(currentMap::addOnOptionChangeListener)
+
+        indoorSelectionChangeListener?.let(currentMap::removeOnIndoorSelectionChangeListener)
+        indoorSelectionChangeListener = NaverMap.OnIndoorSelectionChangeListener { selection ->
+            onIndoorSelectionChange(selection?.toIndoorSelectionInfo())
+        }.also(currentMap::addOnIndoorSelectionChangeListener)
+
+        locationChangeListener?.let(currentMap::removeOnLocationChangeListener)
+        locationChangeListener = NaverMap.OnLocationChangeListener { location ->
+            onLocationChange(location.toCommonMapLocation())
+        }.also(currentMap::addOnLocationChangeListener)
+
+        if (currentMap.isLoaded) {
+            if (!loadDelivered) {
+                loadDelivered = true
+            }
+            onMapLoaded()
+        } else {
+            loadListener?.let(currentMap::removeOnLoadListener)
+            loadListener = NaverMap.OnLoadListener {
+                loadDelivered = true
+                onMapLoaded()
+            }.also(currentMap::addOnLoadListener)
+        }
+    }
+
+    fun clearEventBindings() {
+        val currentMap = map ?: return
+        currentMap.setOnMapClickListener(null)
+        currentMap.setOnMapLongClickListener(null)
+        currentMap.setOnMapDoubleTapListener(null)
+        currentMap.setOnMapTwoFingerTapListener(null)
+        currentMap.setOnSymbolClickListener(null)
+        optionChangeListener?.let(currentMap::removeOnOptionChangeListener)
+        loadListener?.let(currentMap::removeOnLoadListener)
+        indoorSelectionChangeListener?.let(currentMap::removeOnIndoorSelectionChangeListener)
+        locationChangeListener?.let(currentMap::removeOnLocationChangeListener)
+        optionChangeListener = null
+        loadListener = null
+        indoorSelectionChangeListener = null
+        locationChangeListener = null
+        loadDelivered = false
+    }
 }
 
 @Composable
@@ -89,20 +179,76 @@ internal actual fun PlatformNaverMap(
     uiSettings: MapUiSettings,
     locale: String?,
     contentPadding: PaddingValues,
+    onMapClick: (ScreenPoint, LatLng) -> Unit,
+    onMapLongClick: (ScreenPoint, LatLng) -> Unit,
+    onMapDoubleTap: (ScreenPoint, LatLng) -> Boolean,
+    onMapTwoFingerTap: (ScreenPoint, LatLng) -> Boolean,
+    onMapLoaded: () -> Unit,
+    onOptionChange: () -> Unit,
+    onSymbolClick: (MapSymbol) -> Boolean,
+    onIndoorSelectionChange: (IndoorSelectionInfo?) -> Unit,
+    onLocationChange: (MapLocation) -> Unit,
+    content: @Composable () -> Unit,
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val managedMapView = remember { mutableStateOf<ManagedMapView?>(null) }
+    val platformMapHandleState = remember { mutableStateOf<PlatformMapHandle?>(null) }
 
-    AndroidView(
-        modifier = modifier,
-        factory = { context ->
-            ManagedMapView(context).apply {
-                onCreate(Bundle())
-                getMapAsync { naverMap ->
-                    map = naverMap
-                    bindCameraState(cameraPositionState)
+    CompositionLocalProvider(LocalPlatformMapHandle provides platformMapHandleState.value) {
+        AndroidView(
+            modifier = modifier,
+            factory = { context ->
+                ManagedMapView(context).apply {
+                    onCreate(Bundle())
+                    getMapAsync { naverMap ->
+                        map = naverMap
+                        val mapHandle = PlatformMapHandle(naverMap).also {
+                            this.mapHandle = it
+                            platformMapHandleState.value = it
+                        }
+                        bindCameraState(cameraPositionState)
+                        bindEventCallbacks(
+                            onMapClick = onMapClick,
+                            onMapLongClick = onMapLongClick,
+                            onMapDoubleTap = onMapDoubleTap,
+                            onMapTwoFingerTap = onMapTwoFingerTap,
+                            onMapLoaded = onMapLoaded,
+                            onOptionChange = onOptionChange,
+                            onSymbolClick = onSymbolClick,
+                            onIndoorSelectionChange = onIndoorSelectionChange,
+                            onLocationChange = onLocationChange,
+                        )
+                        applyMapState(
+                            map = naverMap,
+                            cameraPositionState = cameraPositionState,
+                            properties = properties,
+                            uiSettings = uiSettings,
+                            locale = locale,
+                            contentPadding = contentPadding,
+                            density = density,
+                            layoutDirection = layoutDirection,
+                        )
+                    }
+                    managedMapView.value = this
+                }
+            },
+            update = { view ->
+                platformMapHandleState.value = view.mapHandle
+                view.bindCameraState(cameraPositionState)
+                view.bindEventCallbacks(
+                    onMapClick = onMapClick,
+                    onMapLongClick = onMapLongClick,
+                    onMapDoubleTap = onMapDoubleTap,
+                    onMapTwoFingerTap = onMapTwoFingerTap,
+                    onMapLoaded = onMapLoaded,
+                    onOptionChange = onOptionChange,
+                    onSymbolClick = onSymbolClick,
+                    onIndoorSelectionChange = onIndoorSelectionChange,
+                    onLocationChange = onLocationChange,
+                )
+                view.map?.let { naverMap ->
                     applyMapState(
                         map = naverMap,
                         cameraPositionState = cameraPositionState,
@@ -114,25 +260,10 @@ internal actual fun PlatformNaverMap(
                         layoutDirection = layoutDirection,
                     )
                 }
-                managedMapView.value = this
-            }
-        },
-        update = { view ->
-            view.bindCameraState(cameraPositionState)
-            view.map?.let { naverMap ->
-                applyMapState(
-                    map = naverMap,
-                    cameraPositionState = cameraPositionState,
-                    properties = properties,
-                    uiSettings = uiSettings,
-                    locale = locale,
-                    contentPadding = contentPadding,
-                    density = density,
-                    layoutDirection = layoutDirection,
-                )
-            }
-        },
-    )
+            },
+        )
+        content()
+    }
 
     DisposableEffect(lifecycleOwner, managedMapView.value) {
         val mapView = managedMapView.value
@@ -147,6 +278,8 @@ internal actual fun PlatformNaverMap(
                     Lifecycle.Event.ON_STOP -> mapView.onStop()
                     Lifecycle.Event.ON_DESTROY -> {
                         mapView.clearCameraBinding()
+                        mapView.clearEventBindings()
+                        platformMapHandleState.value = null
                         mapView.onDestroy()
                     }
                     else -> Unit
@@ -157,6 +290,8 @@ internal actual fun PlatformNaverMap(
             onDispose {
                 lifecycleOwner.lifecycle.removeObserver(observer)
                 mapView.clearCameraBinding()
+                mapView.clearEventBindings()
+                platformMapHandleState.value = null
             }
         }
     }
@@ -317,3 +452,36 @@ private fun AndroidCameraPosition.matches(position: CameraPosition): Boolean {
         tilt == position.tilt &&
         bearing == position.bearing
 }
+
+private fun PointF.toCommonScreenPoint(): ScreenPoint {
+    return ScreenPoint(x = x, y = y)
+}
+
+private fun com.naver.maps.geometry.LatLng.toCommonLatLng(): LatLng {
+    return LatLng(latitude = latitude, longitude = longitude)
+}
+
+private fun Location.toCommonMapLocation(): MapLocation {
+    return MapLocation(
+        latitude = latitude,
+        longitude = longitude,
+        accuracyMeters = if (hasAccuracy()) accuracy else null,
+        bearing = if (hasBearing()) bearing else null,
+        speedMetersPerSecond = if (hasSpeed()) speed else null,
+        altitudeMeters = if (hasAltitude()) altitude else null,
+        timestampMillis = time,
+    )
+}
+
+private fun com.naver.maps.map.indoor.IndoorSelection.toIndoorSelectionInfo(): IndoorSelectionInfo {
+    return IndoorSelectionInfo(
+        zoneId = zone.zoneId,
+        levelId = level.indoorView.levelId,
+        zoneIndex = zoneIndex,
+        levelIndex = levelIndex,
+    )
+}
+
+actual class PlatformMapHandle(
+    val nativeMap: NaverMap,
+)

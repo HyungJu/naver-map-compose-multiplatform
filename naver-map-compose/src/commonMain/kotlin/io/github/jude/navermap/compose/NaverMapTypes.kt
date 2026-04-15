@@ -31,6 +31,33 @@ data class CameraPosition(
     val bearing: Double = 0.0,
 )
 
+data class ScreenPoint(
+    val x: Float,
+    val y: Float,
+)
+
+data class MapSymbol(
+    val caption: String,
+    val position: LatLng,
+)
+
+data class IndoorSelectionInfo(
+    val zoneId: String?,
+    val levelId: String?,
+    val zoneIndex: Int,
+    val levelIndex: Int,
+)
+
+data class MapLocation(
+    val latitude: Double,
+    val longitude: Double,
+    val accuracyMeters: Float? = null,
+    val bearing: Float? = null,
+    val speedMetersPerSecond: Float? = null,
+    val altitudeMeters: Double? = null,
+    val timestampMillis: Long? = null,
+)
+
 enum class MapType {
     Basic,
     Navi,
