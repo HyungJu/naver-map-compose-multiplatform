@@ -58,12 +58,6 @@ val mavenCentralSnapshotsUrl = providers.gradleProperty("mavenCentralSnapshotsUr
 val mavenCentralNamespace = providers.gradleProperty("mavenCentralNamespace")
 val mavenCentralPublishingType = providers.gradleProperty("mavenCentralPublishingType").orElse("automatic")
 
-val javadocJar by tasks.registering(Jar::class) {
-    archiveClassifier.set("javadoc")
-    from(rootProject.layout.projectDirectory.file("README.md"))
-    from(rootProject.layout.projectDirectory.file("LICENSE"))
-}
-
 kotlin {
     androidTarget {
         compilerOptions {
@@ -120,7 +114,13 @@ android {
 publishing {
     publications.withType<MavenPublication>().configureEach {
         if (name != "kotlinMultiplatform") {
-            artifact(javadocJar)
+            val publicationJavadocJar = tasks.register("${name}JavadocJar", Jar::class) {
+                archiveBaseName.set("${project.name}-$name")
+                archiveClassifier.set("javadoc")
+                from(rootProject.layout.projectDirectory.file("README.md"))
+                from(rootProject.layout.projectDirectory.file("LICENSE"))
+            }
+            artifact(publicationJavadocJar)
         }
 
         pom {
