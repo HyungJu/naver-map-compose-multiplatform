@@ -31,5 +31,5 @@ These instructions apply to the entire workspace at `/Users/jude/Code/naver-map-
 - Treat `gradle.properties` as the single source of truth for the shared project version via `VERSION_NAME`, unless a release task explicitly overrides it with `-PVERSION_NAME=...`.
 - For Maven Central publishing work, keep the POM metadata and Sonatype endpoint properties in `gradle.properties` aligned with the current repository ownership and namespace.
 - Use `./gradlew :naver-map-compose:publishToMavenCentral` for Maven Central uploads. This wrapper is expected to publish artifacts, then finalize non-`-SNAPSHOT` releases against the Sonatype Central staging API.
-- Prefer Codex skill judgment for recommending the next release version, then use `./scripts/cut-release.sh <release-version> [next-snapshot-version]` for the deterministic git and GitHub Release steps.
+- Prefer the `/release` Codex skill for recommending the next release version, then use `./scripts/cut-release.sh <release-version> [next-snapshot-version]` for the deterministic git and GitHub Release steps.
 - When updating release automation, keep `docs/publishing.md` and `.github/workflows/publish-maven-central.yml` in sync so the manual and CI flows match.

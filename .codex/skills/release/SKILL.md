@@ -1,9 +1,9 @@
 ---
-name: release-cut
-description: Use when you need Codex to inspect recent changes, recommend the next release version with LLM judgment, and then cut a Maven Central release for this repository with a simple command that tags, pushes, and creates or updates the GitHub Release with gh CLI.
+name: release
+description: Use when you need Codex to inspect recent changes, recommend the next release version with LLM judgment, and then cut a Maven Central release for this repository with a simple command that tags, pushes, and creates or updates the GitHub Release with gh CLI. This skill is intended to be invoked directly as `/release`.
 ---
 
-# Release Cut
+# Release
 
 Use this skill for release tasks in `/Users/jude/Code/naver-map-compose-multiplatform`.
 

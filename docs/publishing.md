@@ -45,7 +45,7 @@ git log --oneline <last-tag>..HEAD
 git diff --stat <last-tag>..HEAD
 ```
 
-Codex can inspect those changes and recommend `major`, `minor`, or `patch`. The version choice now lives in the skill and conversation, not in the script.
+Codex can inspect those changes and recommend `major`, `minor`, or `patch`. The version choice now lives in the skill and conversation, not in the script. In the app, invoke it with `/release`.
 
 ### 3. Cut a release from your machine
 
@@ -116,6 +116,6 @@ The workflow extracts the release version from the tag, for example `v0.1.1` -> 
 
 1. Confirm `README.md` dependency examples still match the latest released artifact.
 2. Run `./gradlew :naver-map-compose:publishToMavenLocal`.
-3. Let Codex inspect the recent changes and recommend the next release version.
+3. Use `/release` so Codex inspects the recent changes and recommends the next release version.
 4. Run `./scripts/cut-release.sh <release-version> [next-snapshot-version]`.
 5. If you need to bypass the helper, use the manual Gradle commands above.
