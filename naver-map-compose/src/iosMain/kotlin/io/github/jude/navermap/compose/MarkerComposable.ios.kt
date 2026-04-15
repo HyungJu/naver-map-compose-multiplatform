@@ -48,7 +48,6 @@ import platform.UIKit.UIView
 import platform.UIKit.UIViewController
 import platform.UIKit.addChildViewController
 import platform.UIKit.didMoveToParentViewController
-import platform.UIKit.drawViewHierarchyInRect
 import platform.UIKit.removeFromParentViewController
 import platform.posix.memcpy
 import kotlin.native.concurrent.ThreadLocal
@@ -204,7 +203,7 @@ private suspend fun renderMarkerComposableToImage(
 private fun UIView.captureToImageBitmap(): ImageBitmap {
     val targetSize = bounds.useContents { CGSizeMake(size.width, size.height) }
     UIGraphicsBeginImageContextWithOptions(targetSize, false, UIScreen.mainScreen.scale)
-    drawViewHierarchyInRect(bounds, true)
+    drawViewHierarchyInRect(rect = bounds, afterScreenUpdates = true)
     val uiImage = UIGraphicsGetImageFromCurrentImageContext()
         ?: throw IllegalStateException("MarkerComposable UIView를 캡처하지 못했습니다.")
     val pngData = UIImagePNGRepresentation(uiImage)
