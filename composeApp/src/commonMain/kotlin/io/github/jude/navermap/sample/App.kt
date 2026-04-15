@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -30,6 +31,7 @@ import io.github.jude.navermap.compose.LocationOverlay
 import io.github.jude.navermap.compose.LatLng
 import io.github.jude.navermap.compose.DisposableMapEffect
 import io.github.jude.navermap.compose.Marker
+import io.github.jude.navermap.compose.MarkerComposable
 import io.github.jude.navermap.compose.MultipartPathOverlay
 import io.github.jude.navermap.compose.OverlayImage
 import io.github.jude.navermap.compose.OverlayStyle
@@ -192,6 +194,33 @@ fun App() {
                             true
                         },
                     )
+                    MarkerComposable(
+                        "compose-marker",
+                        state = rememberUpdatedMarkerState(position = composeMarker),
+                        captionText = "Compose",
+                        style = OverlayStyle(
+                            tag = "compose-marker",
+                            globalZIndex = 210_000,
+                        ),
+                        onClick = {
+                            lastMapEvent = "마커 클릭 Compose 마커"
+                            true
+                        },
+                    ) {
+                        Surface(
+                            color = Color(0xFF111827),
+                            contentColor = Color.White,
+                            shape = RoundedCornerShape(16.dp),
+                            tonalElevation = 4.dp,
+                            shadowElevation = 4.dp,
+                        ) {
+                            Text(
+                                text = "Compose 마커",
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        }
+                    }
                     CircleOverlay(
                         center = cityHall,
                         radiusMeters = 450.0,
@@ -364,6 +393,8 @@ fun App() {
 private val cityHall = LatLng(37.5666102, 126.9783881)
 
 private val demoMarker = LatLng(37.56722, 126.97992)
+
+private val composeMarker = LatLng(37.56805, 126.98055)
 
 private val routePoints = listOf(
     LatLng(37.56555, 126.97732),

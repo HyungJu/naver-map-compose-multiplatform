@@ -618,7 +618,7 @@ fun LocationOverlay(
 }
 
 @Composable
-private fun <T> rememberOverlay(
+internal fun <T> rememberOverlay(
     updateKey: Any?,
     create: (PlatformMapHandle) -> T,
     update: (PlatformMapHandle, T) -> Unit,
