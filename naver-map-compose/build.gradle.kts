@@ -60,6 +60,8 @@ val mavenCentralPublishingType = providers.gradleProperty("mavenCentralPublishin
 
 kotlin {
     androidTarget {
+        publishLibraryVariants("release")
+
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
         }
