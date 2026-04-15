@@ -1,5 +1,7 @@
 # NAVER Map Compose Multiplatform
 
+![NAVER Map Compose Multiplatform banner](docs/images/readme-banner.png)
+
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.jude.navermap/naver-map-compose.svg?label=Maven%20Central)](https://search.maven.org/artifact/io.github.jude.navermap/naver-map-compose)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.3.20-7F52FF.svg?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Compose Multiplatform](https://img.shields.io/badge/Compose%20Multiplatform-1.10.3-4285F4.svg)](https://www.jetbrains.com/compose-multiplatform/)
@@ -8,6 +10,8 @@
 이 라이브러리는 Kotlin Multiplatform과 Compose Multiplatform에서 사용할 수 있는 NAVER Map API를 제공합니다. Android와 iOS에서 공통 Compose API로 지도를 렌더링하고, 카메라 상태와 지도 옵션, 주요 이벤트를 공유하는 것을 목표로 합니다.
 
 이 프로젝트는 [`fornewid/naver-map-compose`](https://github.com/fornewid/naver-map-compose)를 레퍼런스로 삼아 시작했습니다. 다만 Android 전용 API를 그대로 옮기기보다, 멀티플랫폼 환경에 맞는 공통 추상화를 우선하는 방향으로 설계하고 있습니다.
+
+![NAVER Map Compose Multiplatform preview](docs/images/readme-showcase.png)
 
 ## Sample App
 
