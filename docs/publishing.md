@@ -73,12 +73,29 @@ Codex can inspect those changes and recommend `major`, `minor`, or `patch`. In t
 
 This command:
 
+- runs a preflight validation first (`./gradlew :naver-map-compose:publishToMavenLocal` by default)
 - updates `VERSION_NAME` from snapshot to the release version
-- creates a `Release x.y.z` commit
-- creates and pushes `vx.y.z`
+- creates a `chore(release): x.y.z` commit
+- creates and pushes `main` plus `vx.y.z`
 - creates or updates the GitHub Release with `gh`
-- bumps `VERSION_NAME` to the next snapshot
+- bumps `VERSION_NAME` to the next snapshot with `chore(release): 다음 개발 버전 ...`
 - pushes `main`
+
+Additional options:
+
+```bash
+./scripts/cut-release.sh --dry-run 0.1.0
+./scripts/cut-release.sh --skip-preflight 0.1.0
+./scripts/cut-release.sh --skip-gh-release 0.1.0
+```
+
+Environment overrides:
+
+```bash
+PRE_RELEASE_CHECK_CMD="./gradlew test"
+REMOTE=origin
+BRANCH=main
+```
 
 If you want to control the next snapshot explicitly:
 
