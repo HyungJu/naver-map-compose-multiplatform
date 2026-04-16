@@ -1,45 +1,51 @@
 # Publishing
 
-## Version Source Of Truth
+## Current Publishing Model
 
-- Shared project version: `gradle.properties` -> `VERSION_NAME`
-- Shared Maven coordinates: `gradle.properties` -> `GROUP`
-- Release override for CI or one-off publish: `-PVERSION_NAME=0.1.1`
+`naver-map-compose` now follows the same Maven Central pattern used by recent Kotlin Multiplatform library templates:
 
-`VERSION_NAME` ends with `-SNAPSHOT` while you are preparing a release. Maven Central final releases must use a non-snapshot semantic version such as `0.1.1`.
+- publish with `com.vanniktech.maven.publish`
+- enable Central publishing via `mavenCentralPublishing=true`
+- use `./gradlew :naver-map-compose:publishToMavenCentral`
+- let the plugin handle publication wiring, signing, sources/javadoc jars, and automatic release
+
+The shared version source of truth is still `gradle.properties` -> `VERSION_NAME`.
 
 ## Required Sonatype Setup
 
 Before the first upload, prepare these once:
 
 1. Verify the `io.github.hyungju.navermap` namespace in the Sonatype Central Portal.
-2. Generate a Portal token in Sonatype Central.
-3. Prepare a GPG key pair for signing.
+2. Generate a Central Portal publishing token.
+3. Prepare a GPG key pair for signing and publish the public key.
 
-## Required Environment Variables
+Important: Maven Central publishing uses a Portal token, not your regular Sonatype login password.
 
-Gradle reads release secrets from Gradle properties or these environment variables:
+## Preferred Local Credential Setup
 
-```bash
-export MAVEN_CENTRAL_USERNAME=...
-export MAVEN_CENTRAL_PASSWORD=...
-export MAVEN_CENTRAL_GPG_PRIVATE_KEY="$(cat /path/to/private.asc)"
-export MAVEN_CENTRAL_GPG_PASSPHRASE=...
+The plugin reads publishing secrets from Gradle properties. The most reliable local setup is `~/.gradle/gradle.properties`:
+
+```properties
+mavenCentralUsername=...
+mavenCentralPassword=...
+signingInMemoryKey=-----BEGIN PGP PRIVATE KEY BLOCK-----
+...
+-----END PGP PRIVATE KEY BLOCK-----
+signingInMemoryKeyPassword=...
 ```
 
-`MAVEN_CENTRAL_GPG_PRIVATE_KEY` can be either:
+`signingInMemoryKeyId` is optional.
 
-- the full ASCII-armored private key block from `gpg --armor --export-secret-keys ...`
-- or a base64-encoded copy of that ASCII-armored private key block
-- or a base64-encoded copy whose decoded text still uses escaped `\n` line breaks
+If you prefer environment variables, use Gradle's `ORG_GRADLE_PROJECT_` convention:
 
-If signing fails with `Could not read PGP secret key`, the most common causes are:
+```bash
+export ORG_GRADLE_PROJECT_mavenCentralUsername=...
+export ORG_GRADLE_PROJECT_mavenCentralPassword=...
+export ORG_GRADLE_PROJECT_signingInMemoryKey="$(cat /path/to/private.asc)"
+export ORG_GRADLE_PROJECT_signingInMemoryKeyPassword=...
+```
 
-- the secret contains only part of the key
-- the secret contains a public key instead of a private key
-- the passphrase does not match the private key
-
-`MAVEN_CENTRAL_GPG_KEY_ID` is not required by this build and is ignored during signing.
+If your CI stores the private key as base64, decode it before passing it to Gradle. The plugin expects the final value to be the full ASCII-armored private key block.
 
 ## Local Release Commands
 
@@ -57,7 +63,7 @@ git log --oneline <last-tag>..HEAD
 git diff --stat <last-tag>..HEAD
 ```
 
-Codex can inspect those changes and recommend `major`, `minor`, or `patch`. The version choice now lives in the skill and conversation, not in the script. In the app, invoke it with `/release`.
+Codex can inspect those changes and recommend `major`, `minor`, or `patch`. In the app, invoke it with `/release`.
 
 ### 3. Cut a release from your machine
 
@@ -70,7 +76,7 @@ This command:
 - updates `VERSION_NAME` from snapshot to the release version
 - creates a `Release x.y.z` commit
 - creates and pushes `vx.y.z`
-- creates or updates the GitHub Release with `gh`, including a generated description with install coordinates and commit summary
+- creates or updates the GitHub Release with `gh`
 - bumps `VERSION_NAME` to the next snapshot
 - pushes `main`
 
@@ -80,20 +86,13 @@ If you want to control the next snapshot explicitly:
 ./scripts/cut-release.sh 0.2.0 0.3.0-SNAPSHOT
 ```
 
-The command requires:
-
-- a clean worktree
-- running on `main`
-- a configured git remote
-- `gh auth status` to succeed
-
 ### 4. Publish a snapshot manually
 
 ```bash
 ./gradlew :naver-map-compose:publishToMavenCentral
 ```
 
-This uses `VERSION_NAME` from `gradle.properties`. If it ends with `-SNAPSHOT`, the library is uploaded to the Sonatype snapshot repository.
+If `VERSION_NAME` ends with `-SNAPSHOT`, the plugin uploads to the Central Portal snapshot repository.
 
 ### 5. Publish a final release manually
 
@@ -101,7 +100,7 @@ This uses `VERSION_NAME` from `gradle.properties`. If it ends with `-SNAPSHOT`, 
 ./gradlew :naver-map-compose:publishToMavenCentral -PVERSION_NAME=0.1.1
 ```
 
-This uploads every `naver-map-compose` publication, signs them, and then calls the Sonatype Central staging API to finalize the deployment automatically.
+For a non-snapshot version, the plugin uploads the deployment, waits for Central validation, and automatically releases it.
 
 ## GitHub Actions Automation
 
@@ -116,12 +115,11 @@ Recommended repository secrets:
 - `MAVEN_CENTRAL_PASSWORD`
 - `MAVEN_CENTRAL_GPG_PRIVATE_KEY`
 - `MAVEN_CENTRAL_GPG_PASSPHRASE`
-- `MAVEN_CENTRAL_GPG_KEY_ID` (optional)
 
-The workflow extracts the release version from the tag, for example `v0.1.1` -> `0.1.1`, then runs:
+The workflow maps those secrets to the Gradle properties that `com.vanniktech.maven.publish` expects, normalizes the private key if needed, resolves the release version from the tag, and runs:
 
 ```bash
-./gradlew :naver-map-compose:publishToMavenCentral -PVERSION_NAME=<tag-version>
+./gradlew :naver-map-compose:publishToMavenCentral -PVERSION_NAME=<tag-version> --no-configuration-cache
 ```
 
 ## Release Checklist
