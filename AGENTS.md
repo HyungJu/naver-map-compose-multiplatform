@@ -25,6 +25,8 @@ These instructions apply to the entire workspace at `/Users/jude/Code/naver-map-
 
 - At the end of every completed task in this repository, create a git commit before considering the work finished.
 - Do not leave completed work uncommitted unless the user explicitly asks not to commit yet.
+- Use commit messages in the format `feat(scope): 한글 설명`.
+- Preferred scopes include `ios`, `android`, `core`, and other area-specific names that match the changed surface.
 
 ## Release And Versioning
 
