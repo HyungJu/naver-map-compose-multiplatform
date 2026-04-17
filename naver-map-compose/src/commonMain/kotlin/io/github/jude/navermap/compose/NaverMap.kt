@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 fun NaverMap(
     modifier: Modifier = Modifier,
     cameraPositionState: CameraPositionState = rememberCameraPositionState(),
+    authOptions: NaverMapAuthOptions? = null,
     properties: MapProperties = DefaultMapProperties,
     uiSettings: MapUiSettings = DefaultMapUiSettings,
     locale: String? = null,
@@ -24,12 +25,15 @@ fun NaverMap(
     onLocationChange: (MapLocation) -> Unit = {},
     content: @Composable () -> Unit = {},
 ) {
+    val resolvedAuthOptions = currentNaverMapAuthOptions(authOptions)
+
     CompositionLocalProvider(
         LocalCameraPositionState provides cameraPositionState,
     ) {
         PlatformNaverMap(
             modifier = modifier,
             cameraPositionState = cameraPositionState,
+            authOptions = resolvedAuthOptions,
             properties = properties,
             uiSettings = uiSettings,
             locale = locale,
@@ -52,6 +56,7 @@ fun NaverMap(
 internal expect fun PlatformNaverMap(
     modifier: Modifier = Modifier,
     cameraPositionState: CameraPositionState,
+    authOptions: NaverMapAuthOptions?,
     properties: MapProperties,
     uiSettings: MapUiSettings,
     locale: String?,

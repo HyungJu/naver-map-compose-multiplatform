@@ -82,10 +82,41 @@ dependencyResolutionManagement {
 }
 ```
 
-2. 샘플 앱과 실제 앱 모두 NAVER Cloud Platform 지도 클라이언트 ID가 필요합니다.
+2. 샘플 앱과 실제 앱 모두 NAVER Cloud Platform 지도 클라이언트 ID가 필요합니다. 앱에서는 Android manifest / iOS `Info.plist` 방식 또는 Kotlin 코드 기반 `NaverMapAuthProvider` / `authOptions` 방식을 사용할 수 있습니다.
 3. 현재 라이브러리는 공통 지도 호스트, 카메라 상태, 주요 지도 옵션, `MarkerComposable`을 포함한 대표 오버레이, 이벤트 콜백 중심으로 제공됩니다. 위치 소스 헬퍼와 일부 업스트림 패리티 항목은 계속 확장 중입니다.
 
 ## Usage
+
+### Kotlin 코드에서 client ID 주입하기
+
+앱 코드에서 직접 NAVER client ID를 공급하고 싶다면 `NaverMapAuthProvider` 또는 `NaverMap`의 `authOptions` 파라미터를 사용할 수 있습니다. 이 값은 Android에서는 `NaverMapSdk.setClient(...)`, iOS에서는 `NMFAuthManager.shared().ncpKeyId`로 연결됩니다.
+
+```kotlin
+val naverClientId = remember { "YOUR_NCP_KEY_ID_HERE" }
+
+NaverMapAuthProvider(
+    ncpKeyId = naverClientId,
+) {
+    NaverMap(
+        modifier = Modifier.fillMaxSize(),
+    )
+}
+```
+
+개별 지도에만 직접 넣고 싶다면 아래처럼 사용할 수도 있습니다.
+
+```kotlin
+val naverClientId = remember { "YOUR_NCP_KEY_ID_HERE" }
+
+NaverMap(
+    modifier = Modifier.fillMaxSize(),
+    authOptions = NaverMapAuthOptions(
+        ncpKeyId = naverClientId,
+    ),
+)
+```
+
+이미 Android manifest 메타데이터나 iOS `Info.plist`에 키를 넣어두었다면 이 단계는 생략해도 됩니다.
 
 ### 지도 추가하기
 

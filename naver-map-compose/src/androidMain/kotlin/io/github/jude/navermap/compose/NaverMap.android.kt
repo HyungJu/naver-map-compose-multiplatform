@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -24,6 +25,7 @@ import com.naver.maps.map.CameraUpdate
 import com.naver.maps.map.LocationTrackingMode as AndroidLocationTrackingMode
 import com.naver.maps.map.MapView
 import com.naver.maps.map.NaverMap
+import com.naver.maps.map.NaverMapSdk
 import java.util.Locale
 
 private class ManagedMapView(context: Context) : MapView(context) {
@@ -175,6 +177,7 @@ private class ManagedMapView(context: Context) : MapView(context) {
 internal actual fun PlatformNaverMap(
     modifier: Modifier,
     cameraPositionState: CameraPositionState,
+    authOptions: NaverMapAuthOptions?,
     properties: MapProperties,
     uiSettings: MapUiSettings,
     locale: String?,
@@ -190,6 +193,7 @@ internal actual fun PlatformNaverMap(
     onLocationChange: (MapLocation) -> Unit,
     content: @Composable () -> Unit,
 ) {
+    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
@@ -200,6 +204,10 @@ internal actual fun PlatformNaverMap(
         AndroidView(
             modifier = modifier,
             factory = { context ->
+                authOptions?.let { options ->
+                    NaverMapSdk.getInstance(context.applicationContext).client =
+                        NaverMapSdk.NcpKeyClient(options.ncpKeyId)
+                }
                 ManagedMapView(context).apply {
                     onCreate(Bundle())
                     getMapAsync { naverMap ->
@@ -235,6 +243,10 @@ internal actual fun PlatformNaverMap(
                 }
             },
             update = { view ->
+                authOptions?.let { options ->
+                    NaverMapSdk.getInstance(context.applicationContext).client =
+                        NaverMapSdk.NcpKeyClient(options.ncpKeyId)
+                }
                 platformMapHandleState.value = view.mapHandle
                 view.bindCameraState(cameraPositionState)
                 view.bindEventCallbacks(

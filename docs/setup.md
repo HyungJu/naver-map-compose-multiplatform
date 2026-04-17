@@ -24,6 +24,34 @@ NAVER_MAP_CLIENT_ID = YOUR_NCP_KEY_ID_HERE
 
 The sample app forwards that value into `Info.plist` as `NMFNcpKeyId`, which is the key the NAVER iOS SDK reads during startup.
 
+## Runtime injection from Kotlin
+
+Library consumers can also inject the NAVER client ID from Kotlin instead of relying on manifest / `Info.plist` configuration.
+
+```kotlin
+val naverClientId = remember { "YOUR_NCP_KEY_ID_HERE" }
+
+NaverMapAuthProvider(
+    ncpKeyId = naverClientId,
+) {
+    NaverMap()
+}
+```
+
+Or per map:
+
+```kotlin
+val naverClientId = remember { "YOUR_NCP_KEY_ID_HERE" }
+
+NaverMap(
+    authOptions = NaverMapAuthOptions(
+        ncpKeyId = naverClientId,
+    ),
+)
+```
+
+When `authOptions` is omitted, the library falls back to the platform SDK defaults, which means Android manifest metadata and iOS `NMFNcpKeyId` still work as before.
+
 ## Validation
 
 - Android sample: `./gradlew :composeApp:assembleDebug`
