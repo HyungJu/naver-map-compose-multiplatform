@@ -177,7 +177,7 @@ private class ManagedMapView(context: Context) : MapView(context) {
 internal actual fun PlatformNaverMap(
     modifier: Modifier,
     cameraPositionState: CameraPositionState,
-    authOptions: NaverMapAuthOptions?,
+    authOptions: NaverMapAuthOptions,
     properties: MapProperties,
     uiSettings: MapUiSettings,
     locale: String?,
@@ -204,10 +204,8 @@ internal actual fun PlatformNaverMap(
         AndroidView(
             modifier = modifier,
             factory = { context ->
-                authOptions?.let { options ->
-                    NaverMapSdk.getInstance(context.applicationContext).client =
-                        NaverMapSdk.NcpKeyClient(options.ncpKeyId)
-                }
+                NaverMapSdk.getInstance(context.applicationContext).client =
+                    NaverMapSdk.NcpKeyClient(authOptions.ncpKeyId)
                 ManagedMapView(context).apply {
                     onCreate(Bundle())
                     getMapAsync { naverMap ->
@@ -243,10 +241,8 @@ internal actual fun PlatformNaverMap(
                 }
             },
             update = { view ->
-                authOptions?.let { options ->
-                    NaverMapSdk.getInstance(context.applicationContext).client =
-                        NaverMapSdk.NcpKeyClient(options.ncpKeyId)
-                }
+                NaverMapSdk.getInstance(context.applicationContext).client =
+                    NaverMapSdk.NcpKeyClient(authOptions.ncpKeyId)
                 platformMapHandleState.value = view.mapHandle
                 view.bindCameraState(cameraPositionState)
                 view.bindEventCallbacks(

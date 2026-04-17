@@ -56,7 +56,7 @@ fun NaverMap(
 internal expect fun PlatformNaverMap(
     modifier: Modifier = Modifier,
     cameraPositionState: CameraPositionState,
-    authOptions: NaverMapAuthOptions?,
+    authOptions: NaverMapAuthOptions,
     properties: MapProperties,
     uiSettings: MapUiSettings,
     locale: String?,

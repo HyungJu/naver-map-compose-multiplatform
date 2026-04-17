@@ -12,7 +12,7 @@ Add this to `local.properties`:
 naver.map.client.id=YOUR_NCP_KEY_ID_HERE
 ```
 
-The Android sample injects this value into the `com.naver.maps.map.CLIENT_ID` manifest entry.
+The Android sample exposes this value as a string resource, then reads it from Kotlin and passes it to `NaverMapAuthProvider`.
 
 ### iOS
 
@@ -22,11 +22,11 @@ Copy `iosApp/Config/LocalSecrets.example.xcconfig` to `iosApp/Config/LocalSecret
 NAVER_MAP_CLIENT_ID = YOUR_NCP_KEY_ID_HERE
 ```
 
-The sample app forwards that value into `Info.plist` as `NMFNcpKeyId`, which is the key the NAVER iOS SDK reads during startup.
+The sample app forwards that value into `Info.plist` as `NAVER_MAP_CLIENT_ID`, then reads it from Kotlin and passes it to `NaverMapAuthProvider`.
 
 ## Runtime injection from Kotlin
 
-Library consumers can also inject the NAVER client ID from Kotlin instead of relying on manifest / `Info.plist` configuration.
+Library consumers should inject the NAVER client ID from Kotlin.
 
 ```kotlin
 val naverClientId = remember { "YOUR_NCP_KEY_ID_HERE" }
@@ -50,7 +50,7 @@ NaverMap(
 )
 ```
 
-When `authOptions` is omitted, the library falls back to the platform SDK defaults, which means Android manifest metadata and iOS `NMFNcpKeyId` still work as before.
+When `authOptions` and `NaverMapAuthProvider` are both missing, `NaverMap` throws immediately instead of falling back to platform defaults.
 
 ## Validation
 

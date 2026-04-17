@@ -273,7 +273,7 @@ private class ManagedNaverMapView {
 internal actual fun PlatformNaverMap(
     modifier: Modifier,
     cameraPositionState: CameraPositionState,
-    authOptions: NaverMapAuthOptions?,
+    authOptions: NaverMapAuthOptions,
     properties: MapProperties,
     uiSettings: MapUiSettings,
     locale: String?,
@@ -306,9 +306,7 @@ internal actual fun PlatformNaverMap(
         UIKitView(
             modifier = modifier,
             factory = {
-                authOptions?.let { options ->
-                    NMFAuthManager.shared().ncpKeyId = options.ncpKeyId
-                }
+                NMFAuthManager.shared().ncpKeyId = authOptions.ncpKeyId
                 val managed = ManagedNaverMapView()
                 managed.mapHandle = PlatformMapHandle(managed.container.mapView)
                 platformMapHandleState.value = managed.mapHandle
@@ -327,9 +325,7 @@ internal actual fun PlatformNaverMap(
                 managed.container
             },
             update = { container ->
-                authOptions?.let { options ->
-                    NMFAuthManager.shared().ncpKeyId = options.ncpKeyId
-                }
+                NMFAuthManager.shared().ncpKeyId = authOptions.ncpKeyId
                 val managed = managedMapView.value ?: return@UIKitView
                 platformMapHandleState.value = managed.mapHandle
                 managed.bindCameraState(cameraPositionState)

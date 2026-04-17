@@ -41,4 +41,7 @@ fun NaverMapAuthProvider(
 @Composable
 internal fun currentNaverMapAuthOptions(
     explicitAuthOptions: NaverMapAuthOptions?,
-): NaverMapAuthOptions? = explicitAuthOptions ?: LocalNaverMapAuthOptions.current
+): NaverMapAuthOptions {
+    return explicitAuthOptions ?: LocalNaverMapAuthOptions.current
+        ?: error("NaverMap requires NaverMapAuthProvider or authOptions.")
+}

@@ -5,8 +5,10 @@ import androidx.compose.runtime.remember
 import platform.Foundation.NSBundle
 
 @Composable
-actual fun rememberPlatformNaverMapClientId(): String? {
+actual fun rememberPlatformNaverMapClientId(): String {
     return remember {
-        NSBundle.mainBundle.objectForInfoDictionaryKey("NMFNcpKeyId") as? String
-    }?.takeIf { it.isNotBlank() }
+        (NSBundle.mainBundle.objectForInfoDictionaryKey("NAVER_MAP_CLIENT_ID") as? String)
+            ?.takeIf { it.isNotBlank() }
+            ?: error("Missing NAVER_MAP_CLIENT_ID in iosApp Info.plist.")
+    }
 }

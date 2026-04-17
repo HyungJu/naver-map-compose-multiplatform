@@ -94,41 +94,41 @@ fun App() {
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Text(
-                    text = "NAVER Map KMP 샘플",
-                    style = MaterialTheme.typography.headlineMedium,
-                )
-                Text(
-                    text = "공용 Compose API로 지도 타입, 카메라 상태, 기본/고급 오버레이를 Android와 iOS에서 함께 검증합니다.",
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                Text(
-                    text = "현재 줌 ${displayedZoom.formatZoom()}, 지도 타입 ${mapType.name}",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(
-                    text = "지도 로드 상태: ${if (mapLoaded) "완료" else "대기 중"}",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(
-                    text = "원시 지도 이펙트: $rawMapEffectState / 수명주기: $effectLifecycleState",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(
-                    text = "CompositionLocal 줌 ${compositionLocalZoom.formatZoom()}",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(
-                    text = "마지막 지도 이벤트: $lastMapEvent",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                RuntimeConfiguredNaverMap(ncpKeyId = naverMapClientId) {
+            NaverMapAuthProvider(ncpKeyId = naverMapClientId) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text(
+                        text = "NAVER Map KMP 샘플",
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
+                    Text(
+                        text = "공용 Compose API로 지도 타입, 카메라 상태, 기본/고급 오버레이를 Android와 iOS에서 함께 검증합니다.",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = "현재 줌 ${displayedZoom.formatZoom()}, 지도 타입 ${mapType.name}",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = "지도 로드 상태: ${if (mapLoaded) "완료" else "대기 중"}",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = "원시 지도 이펙트: $rawMapEffectState / 수명주기: $effectLifecycleState",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = "CompositionLocal 줌 ${compositionLocalZoom.formatZoom()}",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = "마지막 지도 이벤트: $lastMapEvent",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                     NaverMap(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -328,60 +328,60 @@ fun App() {
                             },
                         )
                     }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Button(
-                        onClick = {
-                            cameraPositionState.position = cameraPositionState.position.copy(
-                                zoom = cameraPositionState.position.zoom + 1,
-                            )
-                        },
-                        modifier = Modifier.weight(1f),
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Text("줌 인")
+                        Button(
+                            onClick = {
+                                cameraPositionState.position = cameraPositionState.position.copy(
+                                    zoom = cameraPositionState.position.zoom + 1,
+                                )
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("줌 인")
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                cameraPositionState.position = cameraPositionState.position.copy(
+                                    zoom = (cameraPositionState.position.zoom - 1).coerceAtLeast(0.0),
+                                )
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("줌 아웃")
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Button(
+                            onClick = {
+                                mapType = if (mapType == MapType.Basic) {
+                                    MapType.Hybrid
+                                } else {
+                                    MapType.Basic
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("지도 타입 전환")
+                        }
+                        OutlinedButton(
+                            onClick = { trafficEnabled = !trafficEnabled },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(if (trafficEnabled) "교통 끄기" else "교통 켜기")
+                        }
                     }
                     OutlinedButton(
-                        onClick = {
-                            cameraPositionState.position = cameraPositionState.position.copy(
-                                zoom = (cameraPositionState.position.zoom - 1).coerceAtLeast(0.0),
-                            )
-                        },
-                        modifier = Modifier.weight(1f),
+                        onClick = { indoorEnabled = !indoorEnabled },
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("줌 아웃")
+                        Text(if (indoorEnabled) "실내지도 끄기" else "실내지도 켜기")
                     }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Button(
-                        onClick = {
-                            mapType = if (mapType == MapType.Basic) {
-                                MapType.Hybrid
-                            } else {
-                                MapType.Basic
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text("지도 타입 전환")
-                    }
-                    OutlinedButton(
-                        onClick = { trafficEnabled = !trafficEnabled },
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(if (trafficEnabled) "교통 끄기" else "교통 켜기")
-                    }
-                }
-                OutlinedButton(
-                    onClick = { indoorEnabled = !indoorEnabled },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(if (indoorEnabled) "실내지도 끄기" else "실내지도 켜기")
                 }
             }
         }
@@ -389,19 +389,7 @@ fun App() {
 }
 
 @Composable
-private fun RuntimeConfiguredNaverMap(
-    ncpKeyId: String?,
-    content: @Composable () -> Unit,
-) {
-    if (ncpKeyId != null) {
-        NaverMapAuthProvider(ncpKeyId = ncpKeyId, content = content)
-    } else {
-        content()
-    }
-}
-
-@Composable
-expect fun rememberPlatformNaverMapClientId(): String?
+expect fun rememberPlatformNaverMapClientId(): String
 
 private val cityHall = LatLng(37.5666102, 126.9783881)
 

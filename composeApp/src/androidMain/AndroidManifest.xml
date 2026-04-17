@@ -3,10 +3,6 @@
     <application
         android:label="Naver Map CMP Sample"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
-        <meta-data
-            android:name="com.naver.maps.map.NCP_KEY_ID"
-            android:value="@string/naver_map_sdk_ncp_key_id" />
-
         <activity
             android:name=".MainActivity"
             android:exported="true">

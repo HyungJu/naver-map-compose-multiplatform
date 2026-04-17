@@ -6,7 +6,7 @@
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>현재 위치 기반 지도 기능을 사용하려면 위치 접근 권한이 필요합니다.</string>
-	<key>NMFNcpKeyId</key>
+	<key>NAVER_MAP_CLIENT_ID</key>
 	<string>$(NAVER_MAP_CLIENT_ID)</string>
 </dict>
 </plist>
