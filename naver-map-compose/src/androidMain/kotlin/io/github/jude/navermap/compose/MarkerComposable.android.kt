@@ -33,6 +33,8 @@ internal actual class PlatformMarkerComposableImage(
 
 @Composable
 internal actual fun rememberPlatformMarkerComposableImage(
+    renderKey: Any?,
+    appearanceKey: Any?,
     density: androidx.compose.ui.unit.Density,
     layoutDirection: androidx.compose.ui.unit.LayoutDirection,
     content: @Composable () -> Unit,
@@ -45,7 +47,15 @@ internal actual fun rememberPlatformMarkerComposableImage(
         mutableStateOf(transparentMarkerPlaceholder)
     }
 
-    LaunchedEffect(parent, compositionContext) {
+    LaunchedEffect(
+        parent,
+        compositionContext,
+        density.density,
+        density.fontScale,
+        layoutDirection,
+        renderKey,
+        appearanceKey,
+    ) {
         while (!parent.isAttachedToWindow) {
             withFrameNanos { }
         }

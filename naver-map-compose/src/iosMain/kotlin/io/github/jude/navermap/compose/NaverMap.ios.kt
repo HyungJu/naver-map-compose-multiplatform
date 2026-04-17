@@ -8,10 +8,12 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.interop.UIKitView
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.uikit.LocalUIViewController
 import cocoapods.NMapsMap.NMFCameraPosition
 import cocoapods.NMapsMap.NMFCameraUpdate
 import cocoapods.NMapsMap.NMFAuthManager
@@ -60,6 +62,7 @@ import platform.CoreLocation.CLLocation
 import platform.Foundation.timeIntervalSince1970
 import platform.UIKit.UIColor
 import platform.UIKit.UIEdgeInsetsMake
+import platform.UIKit.UIViewController
 import platform.darwin.NSObject
 
 private class ManagedNaverMapView {
@@ -290,6 +293,7 @@ internal actual fun PlatformNaverMap(
     content: @Composable () -> Unit,
 ) {
     val layoutDirection = LocalLayoutDirection.current
+    val parentViewController = LocalUIViewController.current
     val mapConfiguration = remember(properties, uiSettings, locale, contentPadding, layoutDirection) {
         MapConfiguration(
             properties = properties,
@@ -308,7 +312,12 @@ internal actual fun PlatformNaverMap(
             factory = {
                 NMFAuthManager.shared().ncpKeyId = authOptions.ncpKeyId
                 val managed = ManagedNaverMapView()
-                managed.mapHandle = PlatformMapHandle(managed.container.mapView)
+                managed.mapHandle = PlatformMapHandle(
+                    nativeMap = managed.container.mapView,
+                    parentViewController = parentViewController,
+                ).also { handle ->
+                    handle.prewarmMarkerComposableRenderer()
+                }
                 platformMapHandleState.value = managed.mapHandle
                 managed.bindCameraState(cameraPositionState)
                 managed.bindEventCallbacks(
@@ -344,10 +353,13 @@ internal actual fun PlatformNaverMap(
         content()
     }
 
-    DisposableEffect(cameraPositionState, managedMapView.value) {
+    val latestManagedMapView = rememberUpdatedState(managedMapView.value)
+
+    DisposableEffect(cameraPositionState) {
         onDispose {
-            managedMapView.value?.clearCameraBinding()
-            managedMapView.value?.clearEventBindings()
+            latestManagedMapView.value?.clearCameraBinding()
+            latestManagedMapView.value?.clearEventBindings()
+            latestManagedMapView.value?.mapHandle?.disposeMarkerComposableRenderer()
             platformMapHandleState.value = null
         }
     }
@@ -562,4 +574,15 @@ private fun Color.toUIColor(): UIColor {
 
 actual class PlatformMapHandle(
     val nativeMap: NMFMapView,
-)
+    internal val parentViewController: UIViewController,
+) {
+    internal val markerComposableRenderer = MarkerComposableRenderer(parentViewController)
+
+    internal fun prewarmMarkerComposableRenderer() {
+        markerComposableRenderer.prewarm()
+    }
+
+    internal fun disposeMarkerComposableRenderer() {
+        markerComposableRenderer.dispose()
+    }
+}

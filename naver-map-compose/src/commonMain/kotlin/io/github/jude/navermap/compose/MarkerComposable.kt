@@ -18,22 +18,19 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 @Composable
 fun MarkerComposable(
     state: MarkerState = rememberUpdatedMarkerState(),
+    renderKey: Any? = state.position,
     onClick: () -> Boolean = { false },
     content: @Composable () -> Unit,
 ) {
     val onClickState = rememberUpdatedState(onClick)
-    val icon = rememberMarkerComposableImage(content = content)
-    val effectiveStyle = if (icon.isReady) {
-        OverlayStyle(globalZIndex = MarkerDefaults.GlobalZIndex)
-    } else {
-        OverlayStyle(
-            visible = false,
-            globalZIndex = MarkerDefaults.GlobalZIndex,
-        )
-    }
+    val icon = rememberMarkerComposableImage(
+        renderKey = renderKey,
+        content = content,
+    )
+    val style = OverlayStyle(globalZIndex = MarkerDefaults.GlobalZIndex)
 
     rememberOverlay(
-        updateKey = listOf(state.position, effectiveStyle, icon),
+        updateKey = listOf(state.position, style, icon),
         create = ::createPlatformMarkerOverlay,
         update = { handle, overlay ->
             updatePlatformMarkerComposableOverlay(
@@ -41,7 +38,7 @@ fun MarkerComposable(
                 overlay = overlay,
                 position = state.position,
                 icon = icon,
-                style = effectiveStyle,
+                style = style,
                 onClick = { onClickState.value() },
             )
         },
@@ -51,6 +48,7 @@ fun MarkerComposable(
 
 @Composable
 internal fun rememberMarkerComposableImage(
+    renderKey: Any?,
     content: @Composable () -> Unit,
 ): PlatformMarkerComposableImage {
     val density = LocalDensity.current
@@ -61,8 +59,17 @@ internal fun rememberMarkerComposableImage(
     val contentColor = LocalContentColor.current
     val textStyle = LocalTextStyle.current
     val currentContent by rememberUpdatedState(content)
+    val appearanceKey = listOf(
+        colorScheme,
+        typography,
+        shapes,
+        contentColor,
+        textStyle,
+    )
 
     return rememberPlatformMarkerComposableImage(
+        renderKey = renderKey,
+        appearanceKey = appearanceKey,
         density = density,
         layoutDirection = layoutDirection,
     ) {
@@ -83,6 +90,8 @@ internal fun rememberMarkerComposableImage(
 
 @Composable
 internal expect fun rememberPlatformMarkerComposableImage(
+    renderKey: Any?,
+    appearanceKey: Any?,
     density: androidx.compose.ui.unit.Density,
     layoutDirection: androidx.compose.ui.unit.LayoutDirection,
     content: @Composable () -> Unit,

@@ -81,6 +81,7 @@ kotlin {
                 implementation(compose.material3)
                 implementation(compose.runtime)
                 implementation(compose.ui)
+                implementation(libs.jetbrains.navigation.compose)
                 implementation(projects.naverMapCompose)
             }
         }

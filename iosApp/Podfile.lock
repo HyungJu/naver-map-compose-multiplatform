@@ -18,7 +18,7 @@ EXTERNAL SOURCES:
     :path: "../composeApp"
 
 SPEC CHECKSUMS:
-  composeApp: 53dfa6072965ff27bca4205f8f006d603d468e75
+  composeApp: 4d0c672e617f4289450343cee87483172ff5b0f9
   NMapsGeometry: 4e02554fa9880ef02ed96b075dc84355d6352479
   NMapsMap: 617b1cec04331deb72fb7553f791bfe7d6b27bb2
 

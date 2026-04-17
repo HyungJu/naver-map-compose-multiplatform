@@ -141,6 +141,7 @@ NaverMap(
         state = rememberUpdatedMarkerState(
             position = LatLng(37.5673, 126.9792),
         ),
+        renderKey = "city-hall-compose-marker",
     ) {
         Surface(
             color = Color(0xFF111827),
@@ -163,6 +164,8 @@ NaverMap(
     )
 }
 ```
+
+`MarkerComposable`은 스냅샷 기반으로 이미지를 다시 캡처하므로, 콘텐츠 값이 바뀌는 경우 `renderKey`에 해당 값을 포함해 주면 안전하게 재렌더링할 수 있습니다.
 
 ### 지도 이벤트 처리하기
 
