@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import java.util.Properties
 
 plugins {
@@ -19,6 +20,32 @@ val localProperties = Properties().apply {
 val naverMapClientId = providers
     .gradleProperty("naver.map.client.id")
     .orElse(localProperties.getProperty("naver.map.client.id", ""))
+
+val generatedSampleConfigDir = layout.buildDirectory.dir("generated/source/sampleConfig/commonMain/kotlin")
+
+val generateSampleNaverMapClientId by tasks.registering {
+    inputs.property("naverMapClientId", naverMapClientId)
+    outputs.dir(generatedSampleConfigDir)
+
+    doLast {
+        val clientId = naverMapClientId.orNull?.trim().orEmpty()
+        if (clientId.isBlank()) {
+            error("Missing naver.map.client.id. Add it to local.properties or pass -Pnaver.map.client.id.")
+        }
+
+        val outputFile = generatedSampleConfigDir.get()
+            .file("io/github/hyungju/navermap/sample/SampleNaverMapClientId.kt")
+            .asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(
+            """
+            package io.github.hyungju.navermap.sample
+
+            internal const val SampleNaverMapClientId = "${clientId.escapeForKotlinString()}"
+            """.trimIndent() + "\n",
+        )
+    }
+}
 
 kotlin {
     androidTarget {
@@ -46,16 +73,22 @@ kotlin {
     }
 
     sourceSets {
-        commonMain.dependencies {
-            implementation(compose.foundation)
-            implementation(compose.material3)
-            implementation(compose.runtime)
-            implementation(compose.ui)
-            implementation(projects.naverMapCompose)
+        named("commonMain") {
+            kotlin.srcDir(generatedSampleConfigDir)
+
+            dependencies {
+                implementation(compose.foundation)
+                implementation(compose.material3)
+                implementation(compose.runtime)
+                implementation(compose.ui)
+                implementation(projects.naverMapCompose)
+            }
         }
 
-        androidMain.dependencies {
-            implementation(libs.androidx.activity.compose)
+        named("androidMain") {
+            dependencies {
+                implementation(libs.androidx.activity.compose)
+            }
         }
     }
 }
@@ -70,7 +103,6 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = project.version.toString()
-        resValue("string", "naver_map_sdk_ncp_key_id", naverMapClientId.get())
     }
 
     buildTypes {
@@ -93,4 +125,21 @@ android {
 
 dependencies {
     debugImplementation(libs.compose.ui.tooling)
+}
+
+tasks.withType<KotlinCompilationTask<*>>().configureEach {
+    dependsOn(generateSampleNaverMapClientId)
+}
+
+fun String.escapeForKotlinString(): String = buildString(length) {
+    for (char in this@escapeForKotlinString) {
+        when (char) {
+            '\\' -> append("\\\\")
+            '"' -> append("\\\"")
+            '\n' -> append("\\n")
+            '\r' -> append("\\r")
+            '\t' -> append("\\t")
+            else -> append(char)
+        }
+    }
 }

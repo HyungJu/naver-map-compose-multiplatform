@@ -21,20 +21,22 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.hyungju.navermap:naver-map-compose:0.1.0")
+    implementation("io.github.hyungju.navermap:naver-map-compose:0.1.4")
 }
 ```
 
 
 ## Usage
 
-### Kotlin 코드에서 client ID 주입하기
+### clientId 설정
 
-앱 코드에서 NAVER client ID를 직접 공급해야 합니다.
+NaverMapAuthProvider를 사용해 clientId를 주입할 수 있습니다.
 
 ```kotlin
+private const val NAVER_CLIENT_ID = "YOUR_NCP_KEY_ID_HERE"
+
 NaverMapAuthProvider(
-    ncpKeyId = "YOUR_NCP_KEY_ID_HERE",
+    ncpKeyId = NAVER_CLIENT_ID,
 ) {
     NaverMap(
         modifier = Modifier.fillMaxSize(),
@@ -46,8 +48,10 @@ NaverMapAuthProvider(
 ### 지도 추가하기
 
 ```kotlin
+private const val NAVER_CLIENT_ID = "YOUR_NCP_KEY_ID_HERE"
+
 NaverMapAuthProvider(
-    ncpKeyId = naverClientId,
+    ncpKeyId = NAVER_CLIENT_ID,
 ) {
     NaverMap(
         modifier = Modifier.fillMaxSize(),

@@ -1,2 +1,1 @@
 #include? "../Pods/Target Support Files/Pods-iosApp/Pods-iosApp.debug.xcconfig"
-#include? "LocalSecrets.xcconfig"

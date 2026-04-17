@@ -4,35 +4,23 @@
 
 Do not commit NAVER client IDs.
 
-### Android
-
 Add this to `local.properties`:
 
 ```properties
 naver.map.client.id=YOUR_NCP_KEY_ID_HERE
 ```
 
-The Android sample exposes this value as a string resource, then reads it from Kotlin and passes it to `NaverMapAuthProvider`.
-
-### iOS
-
-Copy `iosApp/Config/LocalSecrets.example.xcconfig` to `iosApp/Config/LocalSecrets.xcconfig` and set:
-
-```xcconfig
-NAVER_MAP_CLIENT_ID = YOUR_NCP_KEY_ID_HERE
-```
-
-The sample app forwards that value into `Info.plist` as `NAVER_MAP_CLIENT_ID`, then reads it from Kotlin and passes it to `NaverMapAuthProvider`.
+The sample app generates a common KMP constant from this property at build time, so Android and iOS both use the same Kotlin-level client ID.
 
 ## Runtime injection from Kotlin
 
 Library consumers should inject the NAVER client ID from Kotlin.
 
 ```kotlin
-val naverClientId = remember { "YOUR_NCP_KEY_ID_HERE" }
+private const val NAVER_CLIENT_ID = "YOUR_NCP_KEY_ID_HERE"
 
 NaverMapAuthProvider(
-    ncpKeyId = naverClientId,
+    ncpKeyId = NAVER_CLIENT_ID,
 ) {
     NaverMap()
 }
@@ -41,11 +29,11 @@ NaverMapAuthProvider(
 Or per map:
 
 ```kotlin
-val naverClientId = remember { "YOUR_NCP_KEY_ID_HERE" }
+private const val NAVER_CLIENT_ID = "YOUR_NCP_KEY_ID_HERE"
 
 NaverMap(
     authOptions = NaverMapAuthOptions(
-        ncpKeyId = naverClientId,
+        ncpKeyId = NAVER_CLIENT_ID,
     ),
 )
 ```

@@ -53,7 +53,6 @@ import kotlin.math.roundToInt
 
 @Composable
 fun App() {
-    val naverMapClientId = rememberPlatformNaverMapClientId()
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition(
             target = LatLng(37.5666102, 126.9783881),
@@ -94,7 +93,7 @@ fun App() {
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
-            NaverMapAuthProvider(ncpKeyId = naverMapClientId) {
+            NaverMapAuthProvider(ncpKeyId = SampleNaverMapClientId) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -387,9 +386,6 @@ fun App() {
         }
     }
 }
-
-@Composable
-expect fun rememberPlatformNaverMapClientId(): String
 
 private val cityHall = LatLng(37.5666102, 126.9783881)
 
