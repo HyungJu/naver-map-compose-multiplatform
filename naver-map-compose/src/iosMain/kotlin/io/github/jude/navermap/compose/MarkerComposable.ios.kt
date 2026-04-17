@@ -17,7 +17,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.isSpecified
-import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.IntSize
@@ -88,9 +88,9 @@ private val transparentMarkerPlaceholder: PlatformMarkerComposableImage by lazy 
 
 private const val markerRenderConcurrency = 2
 private val markerRenderSemaphore = Semaphore(permits = markerRenderConcurrency)
-private const val markerRenderRetryCount = 2
-private const val markerRenderRetryFrames = 2
-private const val markerMeasureTimeoutFrames = 6
+private const val markerRenderRetryCount = 4
+private const val markerRenderRetryFrames = 4
+private const val markerMeasureTimeoutFrames = 24
 private const val markerSnapshotMeasurementWidthPoints = 512.0
 private const val markerSnapshotMeasurementHeightPoints = 256.0
 private const val markerSnapshotCaptureWidthSlackPoints = 48.0
@@ -360,8 +360,8 @@ private class MarkerSnapshotHost(
                     modifier = Modifier
                         .wrapContentSize()
                         .padding(markerSnapshotPadding)
-                        .onSizeChanged { size ->
-                            measuredContentSizeState.value = size
+                        .onGloballyPositioned { coordinates ->
+                            measuredContentSizeState.value = coordinates.size
                         },
                 ) {
                     currentContent()
