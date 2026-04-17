@@ -702,7 +702,7 @@ private fun NationwideMarkerChip(
         shadowElevation = 3.dp,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -712,7 +712,7 @@ private fun NationwideMarkerChip(
                         color = marker.accentColor,
                         shape = RoundedCornerShape(10.dp),
                     )
-                    .padding(horizontal = 7.dp, vertical = 5.dp),
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
