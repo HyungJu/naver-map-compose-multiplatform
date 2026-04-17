@@ -86,7 +86,7 @@ private val transparentMarkerPlaceholder: PlatformMarkerComposableImage by lazy 
     )
 }
 
-private const val markerRenderConcurrency = 2
+private const val markerRenderConcurrency = 10
 private val markerRenderSemaphore = Semaphore(permits = markerRenderConcurrency)
 private const val markerRenderRetryCount = 4
 private const val markerRenderRetryFrames = 4
