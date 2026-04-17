@@ -21,7 +21,7 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.hyungju.navermap:naver-map-compose:0.1.4")
+    implementation("io.github.hyungju.navermap:naver-map-compose:0.2.0")
 }
 ```
 
