@@ -26,9 +26,30 @@ import androidx.compose.ui.window.ComposeUIViewController
 import cocoapods.NMapsMap.NMFOverlay
 import cocoapods.NMapsMap.NMFOverlayImage
 import kotlinx.coroutines.CancellationException
+import kotlinx.cinterop.ByteVar
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.allocArray
+import kotlinx.cinterop.get
+import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.useContents
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import platform.CoreFoundation.CFDataGetBytePtr
+import platform.CoreFoundation.CFDataGetLength
+import platform.CoreGraphics.CGColorSpaceCreateDeviceRGB
+import platform.CoreGraphics.CGColorSpaceRelease
+import platform.CoreGraphics.CGContextClearRect
+import platform.CoreGraphics.CGContextDrawImage
+import platform.CoreGraphics.CGContextRelease
+import platform.CoreGraphics.CGBitmapContextCreate
+import platform.CoreGraphics.CGDataProviderCopyData
+import platform.CoreGraphics.CGImageAlphaInfo
+import platform.CoreGraphics.CGImageCreateWithImageInRect
+import platform.CoreGraphics.CGImageGetBytesPerRow
+import platform.CoreGraphics.CGImageGetHeight
+import platform.CoreGraphics.CGImageGetWidth
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
 import platform.Foundation.NSLog
@@ -43,6 +64,8 @@ import platform.UIKit.UIViewController
 import platform.UIKit.addChildViewController
 import platform.UIKit.didMoveToParentViewController
 import platform.UIKit.removeFromParentViewController
+import platform.posix.memcpy
+import kotlin.native.internal.NativePtr
 
 private val transparentMarkerPlaceholder: PlatformMarkerComposableImage by lazy {
     UIGraphicsBeginImageContextWithOptions(CGSizeMake(1.0, 1.0), false, 1.0)
@@ -70,8 +93,8 @@ private const val markerRenderRetryFrames = 2
 private const val markerMeasureTimeoutFrames = 6
 private const val markerSnapshotMeasurementWidthPoints = 512.0
 private const val markerSnapshotMeasurementHeightPoints = 256.0
-private const val markerSnapshotCaptureWidthSlackPoints = 4.0
-private const val markerSnapshotCaptureHeightSlackPoints = 10.0
+private const val markerSnapshotCaptureWidthSlackPoints = 48.0
+private const val markerSnapshotCaptureHeightSlackPoints = 16.0
 private const val markerImageCacheMaxEntries = 256
 private val markerSnapshotPadding = 8.dp
 
@@ -88,6 +111,12 @@ internal actual class PlatformMarkerComposableImage(
     val widthPoints: Double,
     val heightPoints: Double,
     actual val isReady: Boolean,
+)
+
+private data class TrimmedMarkerSnapshot(
+    val image: UIImage,
+    val widthPoints: Double,
+    val heightPoints: Double,
 )
 
 private class MarkerComposableImageCache(
@@ -402,7 +431,12 @@ private class MarkerSnapshotHost(
             return transparentMarkerPlaceholder
         }
 
-        return imageFactory(capturedImage, captureWidthPoints, captureHeightPoints)
+        val trimmedSnapshot = capturedImage.trimTransparentBounds()
+        return imageFactory(
+            trimmedSnapshot.image,
+            trimmedSnapshot.widthPoints,
+            trimmedSnapshot.heightPoints,
+        )
     }
 
     fun dispose() {
@@ -505,6 +539,125 @@ private fun UIView.captureToUIImage(): UIImage {
             ?: throw IllegalStateException("MarkerComposable UIView를 캡처하지 못했습니다.")
     } finally {
         UIGraphicsEndImageContext()
+    }
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private fun UIImage.trimTransparentBounds(): TrimmedMarkerSnapshot {
+    val sourceCgImage = CGImage ?: return TrimmedMarkerSnapshot(
+        image = this,
+        widthPoints = size.useContents { this.width },
+        heightPoints = size.useContents { this.height },
+    )
+    val width = CGImageGetWidth(sourceCgImage).toInt()
+    val height = CGImageGetHeight(sourceCgImage).toInt()
+    if (width <= 1 || height <= 1) {
+        return TrimmedMarkerSnapshot(
+            image = this,
+            widthPoints = size.useContents { this.width },
+            heightPoints = size.useContents { this.height },
+        )
+    }
+
+    val bytesPerPixel = 4
+    val bytesPerRow = width * bytesPerPixel
+    val bitmapInfo = CGImageAlphaInfo.kCGImageAlphaPremultipliedLast.value
+    val screenScale = UIScreen.mainScreen.scale
+
+    memScoped {
+        val pixelBuffer = allocArray<ByteVar>(height * bytesPerRow)
+        val colorSpace = CGColorSpaceCreateDeviceRGB() ?: return TrimmedMarkerSnapshot(
+            image = this@trimTransparentBounds,
+            widthPoints = size.useContents { this.width },
+            heightPoints = size.useContents { this.height },
+        )
+        val context = CGBitmapContextCreate(
+            data = pixelBuffer,
+            width = width.toULong(),
+            height = height.toULong(),
+            bitsPerComponent = 8u,
+            bytesPerRow = bytesPerRow.toULong(),
+            space = colorSpace,
+            bitmapInfo = bitmapInfo,
+        )
+        if (context == null) {
+            CGColorSpaceRelease(colorSpace)
+            return TrimmedMarkerSnapshot(
+                image = this@trimTransparentBounds,
+                widthPoints = size.useContents { this.width },
+                heightPoints = size.useContents { this.height },
+            )
+        }
+
+        CGContextClearRect(context, CGRectMake(0.0, 0.0, width.toDouble(), height.toDouble()))
+        CGContextDrawImage(
+            context,
+            CGRectMake(0.0, 0.0, width.toDouble(), height.toDouble()),
+            sourceCgImage,
+        )
+
+        var minX = width
+        var minY = height
+        var maxX = -1
+        var maxY = -1
+
+        for (y in 0 until height) {
+            val rowOffset = y * bytesPerRow
+            for (x in 0 until width) {
+                val alpha = pixelBuffer[rowOffset + (x * bytesPerPixel) + 3].toUByte().toInt()
+                if (alpha > 0) {
+                    if (x < minX) minX = x
+                    if (y < minY) minY = y
+                    if (x > maxX) maxX = x
+                    if (y > maxY) maxY = y
+                }
+            }
+        }
+
+        CGContextRelease(context)
+        CGColorSpaceRelease(colorSpace)
+
+        if (maxX < minX || maxY < minY) {
+            return TrimmedMarkerSnapshot(
+                image = this@trimTransparentBounds,
+                widthPoints = size.useContents { this.width },
+                heightPoints = size.useContents { this.height },
+            )
+        }
+
+        if (minX == 0 && minY == 0 && maxX == width - 1 && maxY == height - 1) {
+            return TrimmedMarkerSnapshot(
+                image = this@trimTransparentBounds,
+                widthPoints = size.useContents { this.width },
+                heightPoints = size.useContents { this.height },
+            )
+        }
+
+        val croppedWidthPixels = maxX - minX + 1
+        val croppedHeightPixels = maxY - minY + 1
+        val croppedCgImage = CGImageCreateWithImageInRect(
+            sourceCgImage,
+            CGRectMake(
+                minX.toDouble(),
+                minY.toDouble(),
+                croppedWidthPixels.toDouble(),
+                croppedHeightPixels.toDouble(),
+            ),
+        ) ?: return TrimmedMarkerSnapshot(
+            image = this@trimTransparentBounds,
+            widthPoints = size.useContents { this.width },
+            heightPoints = size.useContents { this.height },
+        )
+
+        return TrimmedMarkerSnapshot(
+            image = UIImage.imageWithCGImage(
+                cgImage = croppedCgImage,
+                scale = screenScale,
+                orientation = imageOrientation,
+            ),
+            widthPoints = croppedWidthPixels.toDouble() / screenScale,
+            heightPoints = croppedHeightPixels.toDouble() / screenScale,
+        )
     }
 }
 
