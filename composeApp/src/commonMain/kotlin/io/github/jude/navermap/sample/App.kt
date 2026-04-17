@@ -40,6 +40,7 @@ import io.github.hyungju.navermap.compose.MapProperties
 import io.github.hyungju.navermap.compose.MapType
 import io.github.hyungju.navermap.compose.MapUiSettings
 import io.github.hyungju.navermap.compose.NaverMap
+import io.github.hyungju.navermap.compose.NaverMapAuthProvider
 import io.github.hyungju.navermap.compose.currentCameraPositionState
 import io.github.hyungju.navermap.compose.PathOverlay
 import io.github.hyungju.navermap.compose.PolygonOverlay
@@ -52,6 +53,7 @@ import kotlin.math.roundToInt
 
 @Composable
 fun App() {
+    val naverMapClientId = rememberPlatformNaverMapClientId()
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition(
             target = LatLng(37.5666102, 126.9783881),
@@ -126,204 +128,206 @@ fun App() {
                     text = "마지막 지도 이벤트: $lastMapEvent",
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                NaverMap(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(320.dp),
-                    cameraPositionState = cameraPositionState,
-                    properties = properties,
-                    uiSettings = uiSettings,
-                    locale = "ko-KR",
-                    onMapLoaded = {
-                        mapLoaded = true
-                        lastMapEvent = "지도 로드 완료"
-                    },
-                    onMapClick = { _, latLng ->
-                        lastMapEvent = "지도 탭 ${latLng.latitude.formatCoordinate()}, ${latLng.longitude.formatCoordinate()}"
-                    },
-                    onMapLongClick = { _, latLng ->
-                        lastMapEvent = "지도 롱탭 ${latLng.latitude.formatCoordinate()}, ${latLng.longitude.formatCoordinate()}"
-                    },
-                    onOptionChange = {
-                        lastMapEvent = "지도 옵션 변경"
-                    },
-                    onIndoorSelectionChange = { selection ->
-                        lastMapEvent = if (selection == null) {
-                            "실내지도 선택 해제"
-                        } else {
-                            "실내지도 ${selection.zoneId ?: "알 수 없음"} / ${selection.levelId ?: "알 수 없음"}"
-                        }
-                    },
-                    onLocationChange = { location ->
-                        lastMapEvent = "위치 변경 ${location.latitude.formatCoordinate()}, ${location.longitude.formatCoordinate()}"
-                    },
-                ) {
-                    val localCameraState = currentCameraPositionState
-
-                    LaunchedEffect(localCameraState.isMoving) {
-                        if (!localCameraState.isMoving) {
-                            compositionLocalZoom = localCameraState.position.zoom
-                        }
-                    }
-                    MapEffect(Unit) {
-                        rawMapEffectState = "연결됨"
-                        if (!mapLoaded) {
+                RuntimeConfiguredNaverMap(ncpKeyId = naverMapClientId) {
+                    NaverMap(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(320.dp),
+                        cameraPositionState = cameraPositionState,
+                        properties = properties,
+                        uiSettings = uiSettings,
+                        locale = "ko-KR",
+                        onMapLoaded = {
                             mapLoaded = true
-                            if (lastMapEvent == "대기 중") {
-                                lastMapEvent = "지도 준비 완료"
-                            }
-                        }
-                    }
-                    DisposableMapEffect(Unit) {
-                        effectLifecycleState = "활성"
-                        onDispose {
-                            rawMapEffectState = "연결 해제"
-                            effectLifecycleState = "비활성"
-                        }
-                    }
-                    Marker(
-                        state = markerState,
-                        captionText = "대표 마커",
-                        icon = OverlayImage.GreenMarker,
-                        style = OverlayStyle(
-                            tag = "demo-marker",
-                            globalZIndex = 200_000,
-                        ),
-                        onClick = {
-                            lastMapEvent = "마커 클릭 대표 마커"
-                            true
+                            lastMapEvent = "지도 로드 완료"
                         },
-                    )
-                    MarkerComposable(
-                        state = rememberUpdatedMarkerState(position = composeMarker),
-                        onClick = {
-                            lastMapEvent = "마커 클릭 Compose 마커"
-                            true
+                        onMapClick = { _, latLng ->
+                            lastMapEvent = "지도 탭 ${latLng.latitude.formatCoordinate()}, ${latLng.longitude.formatCoordinate()}"
+                        },
+                        onMapLongClick = { _, latLng ->
+                            lastMapEvent = "지도 롱탭 ${latLng.latitude.formatCoordinate()}, ${latLng.longitude.formatCoordinate()}"
+                        },
+                        onOptionChange = {
+                            lastMapEvent = "지도 옵션 변경"
+                        },
+                        onIndoorSelectionChange = { selection ->
+                            lastMapEvent = if (selection == null) {
+                                "실내지도 선택 해제"
+                            } else {
+                                "실내지도 ${selection.zoneId ?: "알 수 없음"} / ${selection.levelId ?: "알 수 없음"}"
+                            }
+                        },
+                        onLocationChange = { location ->
+                            lastMapEvent = "위치 변경 ${location.latitude.formatCoordinate()}, ${location.longitude.formatCoordinate()}"
                         },
                     ) {
-                        Surface(
-                            color = Color(0xFF111827),
-                            contentColor = Color.White,
-                            shape = RoundedCornerShape(16.dp),
-                            tonalElevation = 4.dp,
-                            shadowElevation = 4.dp,
-                        ) {
-                            Text(
-                                text = "Compose 마커",
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                style = MaterialTheme.typography.labelLarge,
-                            )
+                        val localCameraState = currentCameraPositionState
+
+                        LaunchedEffect(localCameraState.isMoving) {
+                            if (!localCameraState.isMoving) {
+                                compositionLocalZoom = localCameraState.position.zoom
+                            }
                         }
+                        MapEffect(Unit) {
+                            rawMapEffectState = "연결됨"
+                            if (!mapLoaded) {
+                                mapLoaded = true
+                                if (lastMapEvent == "대기 중") {
+                                    lastMapEvent = "지도 준비 완료"
+                                }
+                            }
+                        }
+                        DisposableMapEffect(Unit) {
+                            effectLifecycleState = "활성"
+                            onDispose {
+                                rawMapEffectState = "연결 해제"
+                                effectLifecycleState = "비활성"
+                            }
+                        }
+                        Marker(
+                            state = markerState,
+                            captionText = "대표 마커",
+                            icon = OverlayImage.GreenMarker,
+                            style = OverlayStyle(
+                                tag = "demo-marker",
+                                globalZIndex = 200_000,
+                            ),
+                            onClick = {
+                                lastMapEvent = "마커 클릭 대표 마커"
+                                true
+                            },
+                        )
+                        MarkerComposable(
+                            state = rememberUpdatedMarkerState(position = composeMarker),
+                            onClick = {
+                                lastMapEvent = "마커 클릭 Compose 마커"
+                                true
+                            },
+                        ) {
+                            Surface(
+                                color = Color(0xFF111827),
+                                contentColor = Color.White,
+                                shape = RoundedCornerShape(16.dp),
+                                tonalElevation = 4.dp,
+                                shadowElevation = 4.dp,
+                            ) {
+                                Text(
+                                    text = "Compose 마커",
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                    style = MaterialTheme.typography.labelLarge,
+                                )
+                            }
+                        }
+                        CircleOverlay(
+                            center = cityHall,
+                            radiusMeters = 450.0,
+                            fillColor = Color(0x332A6CF0),
+                            outlineWidth = 2.dp,
+                            outlineColor = Color(0xFF2A6CF0),
+                            style = OverlayStyle(
+                                tag = "city-hall-circle",
+                                globalZIndex = CircleOverlayDefaults.GlobalZIndex,
+                            ),
+                            onClick = {
+                                lastMapEvent = "원 오버레이 클릭"
+                                true
+                            },
+                        )
+                        PolylineOverlay(
+                            coordinates = routePoints,
+                            width = 6.dp,
+                            color = Color(0xFF0F8A5F),
+                            style = OverlayStyle(
+                                tag = "route-line",
+                                globalZIndex = PolylineOverlayDefaults.GlobalZIndex,
+                            ),
+                            onClick = {
+                                lastMapEvent = "폴리라인 클릭"
+                                true
+                            },
+                        )
+                        PathOverlay(
+                            coordinates = pathPoints,
+                            progress = 0.38,
+                            width = 10.dp,
+                            outlineWidth = 3.dp,
+                            color = Color(0xFF2563EB),
+                            outlineColor = Color.White,
+                            passedColor = Color(0xFFF97316),
+                            passedOutlineColor = Color.White,
+                            style = OverlayStyle(
+                                tag = "phase4-path",
+                                globalZIndex = -100_000,
+                            ),
+                            onClick = {
+                                lastMapEvent = "경로 오버레이 클릭"
+                                true
+                            },
+                        )
+                        MultipartPathOverlay(
+                            coordinateParts = multipartPathParts,
+                            colorParts = multipartPathColors,
+                            progress = 0.2,
+                            width = 9.dp,
+                            outlineWidth = 2.dp,
+                            style = OverlayStyle(
+                                tag = "phase4-multipart-path",
+                                globalZIndex = -100_000,
+                            ),
+                            onClick = {
+                                lastMapEvent = "멀티 파트 경로 클릭"
+                                true
+                            },
+                        )
+                        ArrowheadPathOverlay(
+                            coordinates = arrowPathPoints,
+                            width = 8.dp,
+                            headSizeRatio = 2.6f,
+                            color = Color(0xFF111827),
+                            outlineWidth = 2.dp,
+                            outlineColor = Color.White,
+                            elevation = 2.dp,
+                            style = OverlayStyle(
+                                tag = "phase4-arrowhead-path",
+                                globalZIndex = 100_000,
+                            ),
+                            onClick = {
+                                lastMapEvent = "화살표 경로 클릭"
+                                true
+                            },
+                        )
+                        PolygonOverlay(
+                            coordinates = plazaPolygon,
+                            fillColor = Color(0x33F28C28),
+                            outlineWidth = 2.dp,
+                            outlineColor = Color(0xFFF28C28),
+                            style = OverlayStyle(
+                                tag = "plaza-polygon",
+                                globalZIndex = PolygonOverlayDefaults.GlobalZIndex,
+                            ),
+                            onClick = {
+                                lastMapEvent = "폴리곤 클릭"
+                                true
+                            },
+                        )
+                        LocationOverlay(
+                            position = demoLocation,
+                            bearing = 16f,
+                            icon = OverlayImage.LocationDefault,
+                            circleRadius = 22.dp,
+                            circleColor = Color(0x443B82F6),
+                            circleOutlineWidth = 2.dp,
+                            circleOutlineColor = Color(0xFF1D4ED8),
+                            style = OverlayStyle(
+                                tag = "demo-location-overlay",
+                                globalZIndex = 300_000,
+                            ),
+                            onClick = {
+                                lastMapEvent = "위치 오버레이 클릭"
+                                true
+                            },
+                        )
                     }
-                    CircleOverlay(
-                        center = cityHall,
-                        radiusMeters = 450.0,
-                        fillColor = Color(0x332A6CF0),
-                        outlineWidth = 2.dp,
-                        outlineColor = Color(0xFF2A6CF0),
-                        style = OverlayStyle(
-                            tag = "city-hall-circle",
-                            globalZIndex = CircleOverlayDefaults.GlobalZIndex,
-                        ),
-                        onClick = {
-                            lastMapEvent = "원 오버레이 클릭"
-                            true
-                        },
-                    )
-                    PolylineOverlay(
-                        coordinates = routePoints,
-                        width = 6.dp,
-                        color = Color(0xFF0F8A5F),
-                        style = OverlayStyle(
-                            tag = "route-line",
-                            globalZIndex = PolylineOverlayDefaults.GlobalZIndex,
-                        ),
-                        onClick = {
-                            lastMapEvent = "폴리라인 클릭"
-                            true
-                        },
-                    )
-                    PathOverlay(
-                        coordinates = pathPoints,
-                        progress = 0.38,
-                        width = 10.dp,
-                        outlineWidth = 3.dp,
-                        color = Color(0xFF2563EB),
-                        outlineColor = Color.White,
-                        passedColor = Color(0xFFF97316),
-                        passedOutlineColor = Color.White,
-                        style = OverlayStyle(
-                            tag = "phase4-path",
-                            globalZIndex = -100_000,
-                        ),
-                        onClick = {
-                            lastMapEvent = "경로 오버레이 클릭"
-                            true
-                        },
-                    )
-                    MultipartPathOverlay(
-                        coordinateParts = multipartPathParts,
-                        colorParts = multipartPathColors,
-                        progress = 0.2,
-                        width = 9.dp,
-                        outlineWidth = 2.dp,
-                        style = OverlayStyle(
-                            tag = "phase4-multipart-path",
-                            globalZIndex = -100_000,
-                        ),
-                        onClick = {
-                            lastMapEvent = "멀티 파트 경로 클릭"
-                            true
-                        },
-                    )
-                    ArrowheadPathOverlay(
-                        coordinates = arrowPathPoints,
-                        width = 8.dp,
-                        headSizeRatio = 2.6f,
-                        color = Color(0xFF111827),
-                        outlineWidth = 2.dp,
-                        outlineColor = Color.White,
-                        elevation = 2.dp,
-                        style = OverlayStyle(
-                            tag = "phase4-arrowhead-path",
-                            globalZIndex = 100_000,
-                        ),
-                        onClick = {
-                            lastMapEvent = "화살표 경로 클릭"
-                            true
-                        },
-                    )
-                    PolygonOverlay(
-                        coordinates = plazaPolygon,
-                        fillColor = Color(0x33F28C28),
-                        outlineWidth = 2.dp,
-                        outlineColor = Color(0xFFF28C28),
-                        style = OverlayStyle(
-                            tag = "plaza-polygon",
-                            globalZIndex = PolygonOverlayDefaults.GlobalZIndex,
-                        ),
-                        onClick = {
-                            lastMapEvent = "폴리곤 클릭"
-                            true
-                        },
-                    )
-                    LocationOverlay(
-                        position = demoLocation,
-                        bearing = 16f,
-                        icon = OverlayImage.LocationDefault,
-                        circleRadius = 22.dp,
-                        circleColor = Color(0x443B82F6),
-                        circleOutlineWidth = 2.dp,
-                        circleOutlineColor = Color(0xFF1D4ED8),
-                        style = OverlayStyle(
-                            tag = "demo-location-overlay",
-                            globalZIndex = 300_000,
-                        ),
-                        onClick = {
-                            lastMapEvent = "위치 오버레이 클릭"
-                            true
-                        },
-                    )
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -383,6 +387,21 @@ fun App() {
         }
     }
 }
+
+@Composable
+private fun RuntimeConfiguredNaverMap(
+    ncpKeyId: String?,
+    content: @Composable () -> Unit,
+) {
+    if (ncpKeyId != null) {
+        NaverMapAuthProvider(ncpKeyId = ncpKeyId, content = content)
+    } else {
+        content()
+    }
+}
+
+@Composable
+expect fun rememberPlatformNaverMapClientId(): String?
 
 private val cityHall = LatLng(37.5666102, 126.9783881)
 
