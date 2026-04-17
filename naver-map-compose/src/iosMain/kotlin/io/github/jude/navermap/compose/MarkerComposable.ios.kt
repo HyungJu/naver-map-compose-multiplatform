@@ -2,44 +2,38 @@
 
 package io.github.hyungju.navermap.compose
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.isSpecified
-import androidx.compose.ui.graphics.Canvas
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.asSkiaBitmap
-import androidx.compose.ui.graphics.toComposeImageBitmap
-import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.uikit.LocalUIViewController
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ComposeUIViewController
 import cocoapods.NMapsMap.NMFOverlay
 import cocoapods.NMapsMap.NMFOverlayImage
-import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.convert
+import kotlinx.coroutines.CancellationException
 import kotlinx.cinterop.useContents
-import kotlinx.cinterop.usePinned
-import org.jetbrains.skia.EncodedImageFormat
-import org.jetbrains.skia.Image
-import org.jetbrains.skia.impl.use
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
-import platform.Foundation.NSData
-import platform.Foundation.create
+import platform.Foundation.NSLog
 import platform.UIKit.UIColor
 import platform.UIKit.UIImage
-import platform.UIKit.UIImagePNGRepresentation
 import platform.UIKit.UIGraphicsBeginImageContextWithOptions
 import platform.UIKit.UIGraphicsEndImageContext
 import platform.UIKit.UIGraphicsGetImageFromCurrentImageContext
@@ -49,8 +43,6 @@ import platform.UIKit.UIViewController
 import platform.UIKit.addChildViewController
 import platform.UIKit.didMoveToParentViewController
 import platform.UIKit.removeFromParentViewController
-import platform.posix.memcpy
-import kotlin.native.concurrent.ThreadLocal
 
 private val transparentMarkerPlaceholder: PlatformMarkerComposableImage by lazy {
     UIGraphicsBeginImageContextWithOptions(CGSizeMake(1.0, 1.0), false, 1.0)
@@ -71,10 +63,25 @@ private val transparentMarkerPlaceholder: PlatformMarkerComposableImage by lazy 
     )
 }
 
-@ThreadLocal
-private object MarkerComposableImageIds {
-    var value: Long = 0
-}
+private const val markerRenderConcurrency = 2
+private val markerRenderSemaphore = Semaphore(permits = markerRenderConcurrency)
+private const val markerRenderRetryCount = 2
+private const val markerRenderRetryFrames = 2
+private const val markerMeasureTimeoutFrames = 6
+private const val markerSnapshotMeasurementWidthPoints = 512.0
+private const val markerSnapshotMeasurementHeightPoints = 256.0
+private const val markerSnapshotCaptureWidthSlackPoints = 4.0
+private const val markerSnapshotCaptureHeightSlackPoints = 10.0
+private const val markerImageCacheMaxEntries = 256
+private val markerSnapshotPadding = 8.dp
+
+internal data class MarkerComposableCacheKey(
+    val renderKey: Any,
+    val appearanceKey: Any?,
+    val density: Float,
+    val fontScale: Float,
+    val layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+)
 
 internal actual class PlatformMarkerComposableImage(
     val nativeImage: NMFOverlayImage,
@@ -83,51 +90,391 @@ internal actual class PlatformMarkerComposableImage(
     actual val isReady: Boolean,
 )
 
+private class MarkerComposableImageCache(
+    private val maxEntries: Int,
+) {
+    private val values = mutableMapOf<MarkerComposableCacheKey, PlatformMarkerComposableImage>()
+    private val accessOrder = mutableListOf<MarkerComposableCacheKey>()
+
+    fun get(key: MarkerComposableCacheKey): PlatformMarkerComposableImage? {
+        val value = values[key] ?: return null
+        touch(key)
+        return value
+    }
+
+    fun put(key: MarkerComposableCacheKey, value: PlatformMarkerComposableImage) {
+        values[key] = value
+        touch(key)
+        trimToSize()
+    }
+
+    fun clear() {
+        values.clear()
+        accessOrder.clear()
+    }
+
+    private fun touch(key: MarkerComposableCacheKey) {
+        accessOrder.remove(key)
+        accessOrder.add(key)
+    }
+
+    private fun trimToSize() {
+        while (values.size > maxEntries && accessOrder.isNotEmpty()) {
+            val eldest = accessOrder.removeAt(0)
+            values.remove(eldest)
+        }
+    }
+}
+
+internal class MarkerComposableRenderer(
+    private val parentViewController: UIViewController,
+) {
+    private val imageCache = MarkerComposableImageCache(maxEntries = markerImageCacheMaxEntries)
+    private var hostPool: MarkerSnapshotHostPool? = null
+    private var nextImageId: Long = 0
+    private var cacheHitCount: Int = 0
+    private var renderCount: Int = 0
+
+    fun prewarm() {
+        getOrCreateHostPool()
+    }
+
+    fun cachedImage(key: MarkerComposableCacheKey): PlatformMarkerComposableImage? {
+        return imageCache.get(key)?.also {
+            cacheHitCount += 1
+        }
+    }
+
+    suspend fun render(
+        cacheKey: MarkerComposableCacheKey?,
+        density: androidx.compose.ui.unit.Density,
+        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+        content: @Composable () -> Unit,
+    ): PlatformMarkerComposableImage {
+        renderCount += 1
+        val image = markerRenderSemaphore.withPermit {
+            getOrCreateHostPool().render(
+                density = density,
+                layoutDirection = layoutDirection,
+                content = content,
+            )
+        }
+        if (cacheKey != null && image.isReady) {
+            imageCache.put(cacheKey, image)
+        }
+        return image
+    }
+
+    fun dispose() {
+        if (cacheHitCount > 0 || renderCount > 0) {
+            NSLog(
+                "[MarkerComposable] renderer summary cacheHits=%ld renders=%ld",
+                cacheHitCount.toLong(),
+                renderCount.toLong(),
+            )
+        }
+        hostPool?.dispose()
+        hostPool = null
+        imageCache.clear()
+    }
+
+    private fun getOrCreateHostPool(): MarkerSnapshotHostPool {
+        val existing = hostPool
+        if (existing != null) {
+            return existing
+        }
+
+        return MarkerSnapshotHostPool(
+            parentViewController = parentViewController,
+            imageFactory = ::createPlatformMarkerComposableImage,
+        ).also { pool ->
+            hostPool = pool
+        }
+    }
+
+    private fun createPlatformMarkerComposableImage(
+        image: UIImage,
+        widthPoints: Double,
+        heightPoints: Double,
+    ): PlatformMarkerComposableImage {
+        val imageId = ++nextImageId
+        NSLog(
+            "[MarkerComposable] rendered image %.1fx%.1f",
+            widthPoints,
+            heightPoints,
+        )
+        return PlatformMarkerComposableImage(
+            nativeImage = NMFOverlayImage.overlayImageWithImage(
+                image,
+                reuseIdentifier = "marker-composable-$imageId",
+            ),
+            widthPoints = widthPoints,
+            heightPoints = heightPoints,
+            isReady = true,
+        )
+    }
+}
+
 @Composable
 internal actual fun rememberPlatformMarkerComposableImage(
+    renderKey: Any?,
+    appearanceKey: Any?,
     density: androidx.compose.ui.unit.Density,
     layoutDirection: androidx.compose.ui.unit.LayoutDirection,
     content: @Composable () -> Unit,
 ): PlatformMarkerComposableImage {
-    val parentViewController = LocalUIViewController.current
+    val mapHandle = LocalPlatformMapHandle.current ?: return transparentMarkerPlaceholder
+    val renderer = remember(mapHandle) { mapHandle.markerComposableRenderer }
     val currentContent by rememberUpdatedState(content)
-    val renderedImage = remember {
-        mutableStateOf(transparentMarkerPlaceholder)
+    val cacheKey = renderKey?.let {
+        MarkerComposableCacheKey(
+            renderKey = it,
+            appearanceKey = appearanceKey,
+            density = density.density,
+            fontScale = density.fontScale,
+            layoutDirection = layoutDirection,
+        )
+    }
+    val renderedImage = remember(renderer, cacheKey) {
+        mutableStateOf(
+            cacheKey?.let(renderer::cachedImage) ?: transparentMarkerPlaceholder,
+        )
     }
 
-    LaunchedEffect(
-        parentViewController,
-        density.density,
-        density.fontScale,
-        layoutDirection,
-    ) {
-        repeat(2) {
-            withFrameNanos { }
+    LaunchedEffect(renderer, cacheKey) {
+        cacheKey?.let(renderer::cachedImage)?.let { cachedImage ->
+            if (cachedImage.isReady) {
+                renderedImage.value = cachedImage
+                return@LaunchedEffect
+            }
         }
 
-        renderedImage.value = renderMarkerComposableToImage(
-            parentViewController = parentViewController,
-            density = density,
-            layoutDirection = layoutDirection,
-            content = currentContent,
-        )
+        try {
+            var lastFailure: Throwable? = null
+
+            repeat(markerRenderRetryCount) { attempt ->
+                val image = try {
+                    renderer.render(
+                        cacheKey = cacheKey,
+                        density = density,
+                        layoutDirection = layoutDirection,
+                        content = currentContent,
+                    )
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (throwable: Throwable) {
+                    lastFailure = throwable
+                    null
+                }
+
+                if (image != null && image.isReady) {
+                    renderedImage.value = image
+                    return@LaunchedEffect
+                }
+
+                if (attempt < markerRenderRetryCount - 1) {
+                    repeat(markerRenderRetryFrames) {
+                        withFrameNanos { }
+                    }
+                }
+            }
+
+            if (lastFailure != null) {
+                NSLog(
+                    "[MarkerComposable] render failed after retries: %@",
+                    lastFailure.message ?: "unknown",
+                )
+            } else if (!renderedImage.value.isReady) {
+                NSLog("[MarkerComposable] render stayed at placeholder after retry budget")
+            }
+        } catch (_: CancellationException) {
+            // Composition 종료로 인한 정상 취소입니다.
+        } catch (throwable: Throwable) {
+            NSLog(
+                "[MarkerComposable] render failed: %@",
+                throwable.message ?: "unknown",
+            )
+        }
     }
 
     return renderedImage.value
 }
 
-private fun createPlatformMarkerComposableImage(image: UIImage): PlatformMarkerComposableImage {
-    val imageId = ++MarkerComposableImageIds.value
-    val imageSize = image.size.useContents { this }
-    return PlatformMarkerComposableImage(
-        nativeImage = NMFOverlayImage.overlayImageWithImage(
-            image,
-            reuseIdentifier = "marker-composable-$imageId",
+@OptIn(ExperimentalComposeUiApi::class)
+private class MarkerSnapshotHost(
+    private val parentViewController: UIViewController,
+    private val imageFactory: (UIImage, Double, Double) -> PlatformMarkerComposableImage,
+) {
+    private val densityState: MutableState<androidx.compose.ui.unit.Density> = mutableStateOf(
+        androidx.compose.ui.unit.Density(
+            density = 1f,
+            fontScale = 1f,
         ),
-        widthPoints = imageSize.width,
-        heightPoints = imageSize.height,
-        isReady = true,
     )
+    private val layoutDirectionState = mutableStateOf(androidx.compose.ui.unit.LayoutDirection.Ltr)
+    private val contentState = mutableStateOf<(@Composable () -> Unit)?>(null)
+    private val measuredContentSizeState = mutableStateOf(IntSize.Zero)
+    private var lastMeasuredContentSize = IntSize.Zero
+    private val snapshotViewController = ComposeUIViewController(
+        configure = {
+            opaque = false
+            enforceStrictPlistSanityCheck = false
+        },
+    ) {
+        val currentContent = contentState.value
+        if (currentContent != null) {
+            CompositionLocalProvider(
+                LocalDensity provides densityState.value,
+                LocalLayoutDirection provides layoutDirectionState.value,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .wrapContentSize()
+                        .padding(markerSnapshotPadding)
+                        .onSizeChanged { size ->
+                            measuredContentSizeState.value = size
+                        },
+                ) {
+                    currentContent()
+                }
+            }
+        }
+    }
+
+    init {
+        snapshotViewController.view.apply {
+            backgroundColor = UIColor.clearColor
+            alpha = 1.0
+            userInteractionEnabled = false
+            setFrame(
+                CGRectMake(
+                    0.0,
+                    0.0,
+                    markerSnapshotMeasurementWidthPoints,
+                    markerSnapshotMeasurementHeightPoints,
+                ),
+            )
+        }
+        parentViewController.addChildViewController(snapshotViewController)
+        parentViewController.view.addSubview(snapshotViewController.view)
+        parentViewController.view.sendSubviewToBack(snapshotViewController.view)
+        snapshotViewController.didMoveToParentViewController(parentViewController)
+    }
+
+    suspend fun render(
+        density: androidx.compose.ui.unit.Density,
+        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+        content: @Composable () -> Unit,
+    ): PlatformMarkerComposableImage {
+        densityState.value = density
+        layoutDirectionState.value = layoutDirection
+        measuredContentSizeState.value = IntSize.Zero
+        contentState.value = content
+
+        prepareMeasurementFrame()
+        val measuredContentSize = awaitMeasuredContentSize()
+            ?: return transparentMarkerPlaceholder
+
+        lastMeasuredContentSize = measuredContentSize
+        val screenScale = UIScreen.mainScreen.scale
+        val contentWidthPoints = measuredContentSize.width.toDouble() / screenScale
+        val contentHeightPoints = measuredContentSize.height.toDouble() / screenScale
+        val captureWidthPoints = contentWidthPoints + markerSnapshotCaptureWidthSlackPoints
+        val captureHeightPoints = contentHeightPoints + markerSnapshotCaptureHeightSlackPoints
+
+        snapshotViewController.view.setFrame(
+            CGRectMake(
+                0.0,
+                0.0,
+                captureWidthPoints,
+                captureHeightPoints,
+            ),
+        )
+
+        repeat(markerRenderRetryFrames) {
+            withFrameNanos { }
+            snapshotViewController.view.setNeedsLayout()
+            snapshotViewController.view.layoutIfNeeded()
+        }
+
+        val capturedImage = snapshotViewController.view.captureToUIImage()
+        if (capturedImage.size.useContents { width <= 1.0 || height <= 1.0 }) {
+            return transparentMarkerPlaceholder
+        }
+
+        return imageFactory(capturedImage, captureWidthPoints, captureHeightPoints)
+    }
+
+    fun dispose() {
+        snapshotViewController.view.removeFromSuperview()
+        snapshotViewController.removeFromParentViewController()
+    }
+
+    private fun prepareMeasurementFrame() {
+        val screenScale = UIScreen.mainScreen.scale
+        val lastWidthPoints = if (lastMeasuredContentSize.width > 1) {
+            lastMeasuredContentSize.width.toDouble() / screenScale
+        } else {
+            0.0
+        }
+        val lastHeightPoints = if (lastMeasuredContentSize.height > 1) {
+            lastMeasuredContentSize.height.toDouble() / screenScale
+        } else {
+            0.0
+        }
+        snapshotViewController.view.setFrame(
+            CGRectMake(
+                0.0,
+                0.0,
+                maxOf(markerSnapshotMeasurementWidthPoints, lastWidthPoints),
+                maxOf(markerSnapshotMeasurementHeightPoints, lastHeightPoints),
+            ),
+        )
+    }
+
+    private suspend fun awaitMeasuredContentSize(): IntSize? {
+        repeat(markerMeasureTimeoutFrames) {
+            withFrameNanos { }
+            snapshotViewController.view.setNeedsLayout()
+            snapshotViewController.view.layoutIfNeeded()
+            val measuredSize = measuredContentSizeState.value
+            if (measuredSize.width > 1 && measuredSize.height > 1) {
+                return measuredSize
+            }
+        }
+        return null
+    }
+}
+
+private class MarkerSnapshotHostPool(
+    parentViewController: UIViewController,
+    imageFactory: (UIImage, Double, Double) -> PlatformMarkerComposableImage,
+) {
+    private val hosts = List(markerRenderConcurrency) {
+        MarkerSnapshotHost(
+            parentViewController = parentViewController,
+            imageFactory = imageFactory,
+        )
+    }
+    private var nextHostIndex = 0
+
+    suspend fun render(
+        density: androidx.compose.ui.unit.Density,
+        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+        content: @Composable () -> Unit,
+    ): PlatformMarkerComposableImage {
+        val host = hosts[nextHostIndex]
+        nextHostIndex = (nextHostIndex + 1) % hosts.size
+        return host.render(
+            density = density,
+            layoutDirection = layoutDirection,
+            content = content,
+        )
+    }
+
+    fun dispose() {
+        hosts.forEach(MarkerSnapshotHost::dispose)
+    }
 }
 
 internal actual fun updatePlatformMarkerComposableOverlay(
@@ -149,123 +496,15 @@ internal actual fun updatePlatformMarkerComposableOverlay(
     }
 }
 
-@OptIn(ExperimentalComposeUiApi::class)
-private suspend fun renderMarkerComposableToImage(
-    parentViewController: UIViewController,
-    density: androidx.compose.ui.unit.Density,
-    layoutDirection: androidx.compose.ui.unit.LayoutDirection,
-    content: @Composable () -> Unit,
-): PlatformMarkerComposableImage {
-    val snapshotViewController = ComposeUIViewController(
-        configure = {
-            opaque = false
-            enforceStrictPlistSanityCheck = false
-        },
-    ) {
-        CompositionLocalProvider(
-            LocalDensity provides density,
-            LocalLayoutDirection provides layoutDirection,
-        ) {
-            content()
-        }
-    }
-
-    return try {
-        val offscreenY = parentViewController.view.bounds.useContents { size.height + 32.0 }
-        snapshotViewController.view.apply {
-            backgroundColor = UIColor.clearColor
-            alpha = 1.0
-            setFrame(CGRectMake(0.0, offscreenY, 512.0, 256.0))
-        }
-        parentViewController.addChildViewController(snapshotViewController)
-        parentViewController.view.addSubview(snapshotViewController.view)
-        snapshotViewController.didMoveToParentViewController(parentViewController)
-
-        repeat(4) {
-            withFrameNanos { }
-            snapshotViewController.view.layoutIfNeeded()
-        }
-
-        val capturedBitmap = snapshotViewController.view
-            .captureToImageBitmap()
-            .cropTransparentBounds()
-        require(capturedBitmap.width > 0 && capturedBitmap.height > 0) {
-            "MarkerComposable 콘텐츠의 너비와 높이는 0보다 커야 합니다."
-        }
-        val uiImage = capturedBitmap.toUIImage()
-        createPlatformMarkerComposableImage(uiImage)
-    } finally {
-        snapshotViewController.view.removeFromSuperview()
-        snapshotViewController.removeFromParentViewController()
-    }
-}
-
-private fun UIView.captureToImageBitmap(): ImageBitmap {
+private fun UIView.captureToUIImage(): UIImage {
     val targetSize = bounds.useContents { CGSizeMake(size.width, size.height) }
     UIGraphicsBeginImageContextWithOptions(targetSize, false, UIScreen.mainScreen.scale)
-    drawViewHierarchyInRect(rect = bounds, afterScreenUpdates = true)
-    val uiImage = UIGraphicsGetImageFromCurrentImageContext()
-        ?: throw IllegalStateException("MarkerComposable UIView를 캡처하지 못했습니다.")
-    val pngData = UIImagePNGRepresentation(uiImage)
-        ?: throw IllegalStateException("MarkerComposable UIView를 PNG로 변환하지 못했습니다.")
-    UIGraphicsEndImageContext()
-
-    val length = pngData.length.toInt()
-    val bytes = ByteArray(length)
-    bytes.usePinned { dst ->
-        memcpy(dst.addressOf(0), pngData.bytes, length.convert())
-    }
-
-    return Image.makeFromEncoded(bytes).toComposeImageBitmap()
-}
-
-private fun ImageBitmap.cropTransparentBounds(): ImageBitmap {
-    val pixels = toPixelMap()
-    var minX = width
-    var minY = height
-    var maxX = -1
-    var maxY = -1
-
-    for (y in 0 until height) {
-        for (x in 0 until width) {
-            if (pixels[x, y].alpha > 0f) {
-                if (x < minX) minX = x
-                if (y < minY) minY = y
-                if (x > maxX) maxX = x
-                if (y > maxY) maxY = y
-            }
-        }
-    }
-
-    if (maxX < minX || maxY < minY) {
-        return ImageBitmap(1, 1)
-    }
-
-    val croppedWidth = maxX - minX + 1
-    val croppedHeight = maxY - minY + 1
-    val croppedBitmap = ImageBitmap(croppedWidth, croppedHeight)
-    val canvas = Canvas(croppedBitmap)
-    canvas.drawImageRect(
-        image = this,
-        srcOffset = IntOffset(minX, minY),
-        srcSize = IntSize(croppedWidth, croppedHeight),
-        dstOffset = IntOffset.Zero,
-        dstSize = IntSize(croppedWidth, croppedHeight),
-        paint = Paint(),
-    )
-    return croppedBitmap
-}
-
-private fun ImageBitmap.toUIImage(): UIImage {
-    return Image.makeFromBitmap(asSkiaBitmap()).use { image ->
-        val data = image.encodeToData(EncodedImageFormat.PNG)
-            ?: throw IllegalStateException("MarkerComposable 이미지를 PNG로 인코딩하지 못했습니다.")
-        val bytes = data.bytes
-        val nsData = bytes.usePinned { pinned ->
-            NSData.create(bytes = pinned.addressOf(0), length = bytes.size.toULong())
-        }
-        UIImage.imageWithData(nsData, UIScreen.mainScreen.scale)
-            ?: throw IllegalStateException("MarkerComposable UIImage를 생성하지 못했습니다.")
+    return try {
+        drawViewHierarchyInRect(rect = bounds, afterScreenUpdates = true)
+        UIGraphicsGetImageFromCurrentImageContext()
+            ?: throw IllegalStateException("MarkerComposable UIView를 캡처하지 못했습니다.")
+    } finally {
+        UIGraphicsEndImageContext()
     }
 }
 
